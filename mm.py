@@ -6,6 +6,8 @@ import argparse
 import toml
 import subprocess
 from pathlib import Path
+import struct
+from zlib import crc32
 
 g_ProjectPath = ''
 g_BuildPath = ''
@@ -223,7 +225,7 @@ def linkELF(step):
     ]
 
     if step == 'step2':
-        mapTarget = '"%s"' % str(g_BuildPath / g_ProjectName / '.map')
+        mapTarget = '"%s"' % str(g_BuildPath / (g_ProjectName + '.map'))
         flags.append('-Wl,-Map=' + mapTarget)
         flags.append('-Wl,--print-memory-usage')
         linkScript = '"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker_pass_final.cmd')
@@ -285,6 +287,171 @@ def linkELF(step):
     p.wait()
     return p.poll()
 
+
+def generateIsr():
+    cmd = '"%s"' % str(getSDKTool('objcopy'))
+
+    flags = [
+        '-I elf32-littlearm',
+        '-O binary',
+        '--only-section=.intList',
+        '"%s"' % str(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
+        'isrList.bin'
+    ]
+
+    for item in flags:
+        cmd += ' ' + item
+
+    os.chdir(g_BuildPath)
+    if g_Verbose:
+        print(cmd)
+    p = subprocess.Popen(cmd, shell = True)
+    p.wait()
+    return p.poll()
+
+def generateIsrTable():
+    cmd = '"%s"' % str(getSDKTool('gen_isr_tables'))
+
+    flags = [
+        '--output-source',
+        'isr_tables.c',
+        '--kernel ' + '"%s"' % str(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
+        '--intlist',
+        'isrList.bin',
+        '--sw-isr-table',
+        '--vector-table'
+    ]
+
+    for item in flags:
+        cmd += ' ' + item
+
+    os.chdir(g_BuildPath)
+    if g_Verbose:
+        print(cmd)
+    p = subprocess.Popen(cmd, shell = True)
+    p.wait()
+    return p.poll()
+
+def compileIsr():
+    cmd = '"%s"' % str(getSDKTool('gcc'))
+
+    includePath = [
+        'hal/HalSwiftIOBoard/zephyr/include',
+        'hal/HalSwiftIOBoard/zephyr/soc/arm/nxp_imx/rt',
+        'hal/HalSwiftIOBoard/zephyr/lib/libc/newlib/include',
+        'hal/HalSwiftIOBoard/zephyr/ext/hal/cmsis/Core/Include',
+        'hal/HalSwiftIOBoard/modules/hal/nxp/mcux/devices/MIMXRT1052',
+        'hal/HalSwiftIOBoard/modules/hal/nxp/mcux/drivers/imx',
+        'hal/HalSwiftIOBoard/generated'
+    ]
+
+    flags = [
+        '-DBOARD_FLASH_SIZE=CONFIG_FLASH_SIZE',
+        '-DBUILD_VERSION=zephyr-v2.2.0',
+        '-DCPU_MIMXRT1052DVL6B',
+        '-DKERNEL',
+        #'-DXIP_BOOT_HEADER_DCD_ENABLE=1',
+        #'-DXIP_BOOT_HEADER_ENABLE=1',
+        '-D_FORTIFY_SOURCE=2',
+        '-D__LINUX_ERRNO_EXTENSIONS__',
+        '-D__PROGRAM_START',
+        '-D__ZEPHYR__=1',
+        '-Os',
+        '-ffreestanding',
+        '-fno-common',
+        '-g',
+        '-mthumb',
+        '-mcpu=cortex-m7',
+        '-mfpu=fpv5-d16',
+        '-mfloat-abi=soft',
+        '-Wall',
+        '-Wformat',
+        '-Wformat-security',
+        '-Wno-format-zero-length',
+        '-Wno-main',
+        '-Wno-pointer-sign',
+        '-Wpointer-arith',
+        '-Wno-unused-but-set-variable',
+        '-Werror=implicit-int',
+        '-fno-asynchronous-unwind-tables',
+        '-fno-pie',
+        '-fno-pic',
+        '-fno-strict-overflow',
+        '-fno-short-enums',
+        '-fno-reorder-functions',
+        '-fno-defer-pop',
+        '-ffunction-sections',
+        '-fdata-sections',
+        '-mabi=aapcs',
+        '-std=c99'
+    ]
+
+    for item in includePath:
+        flags.append('-I' + '"%s"' % str(g_SdkPath / item))
+    
+    flags.append('-isystem ' + '"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/include'))
+    flags.append('-imacros ' + '"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/autoconf.h'))
+    flags.append('-o ' + '"%s"' % (g_BuildPath / 'isr_tables.c.obj'))
+    flags.append('-c ' + '"%s"' % (g_BuildPath / 'isr_tables.c'))
+
+    for item in flags:
+        cmd += ' ' + item
+
+    os.chdir(g_BuildPath)
+    if g_Verbose:
+        print(cmd)
+    p = subprocess.Popen(cmd, shell = True)
+    p.wait()
+    return p.poll()
+
+def generateBin():
+    cmd = '"%s"' % str(getSDKTool('objcopy'))
+
+    flags = [
+        '-S',
+        '-Obinary',
+        '--gap-fill',
+        '0xFF',
+        '-R',
+        '.comment',
+        '-R',
+        'COMMON',
+        '-R',
+        '.eh_frame'
+    ]
+
+    flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '.elf')))
+    flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '.bin')))
+
+    for item in flags:
+        cmd += ' ' + item
+
+    os.chdir(g_BuildPath)
+    if g_Verbose:
+        print(cmd)
+    p = subprocess.Popen(cmd, shell = True)
+    p.wait()
+    return p.poll()
+
+def int32_to_int8(n):
+    mask = (1 << 8) - 1
+    return [(n >> k) & mask for k in range(0, 32, 8)]
+
+def addCrcToBin():
+    data = (g_BuildPath / (g_ProjectName + '.bin')).read_bytes()
+    value = crc32(data)
+    print(value)
+    list_dec = int32_to_int8(value)
+
+    targetFile = (g_BuildPath / 'swiftio.bin')
+
+    os.chdir(g_BuildPath)
+    with open(targetFile, 'wb') as f1:
+        f1.write(data)
+        for x in list_dec:
+            a = struct.pack('B', x)
+            f1.write(a)
+
 def buildLibrary():
     if compileSwift('module'):
         os._exit(-1)
@@ -299,6 +466,18 @@ def buildExecutable():
     if mergeObjects():
         os._exit(-1)
     if linkELF('step1'):
+        os._exit(-1)
+    if generateIsr():
+        os._exit(-1)
+    if generateIsrTable():
+        os._exit(-1)
+    if compileIsr():
+        os._exit(-1)
+    if linkELF('step2'):
+        os._exit(-1)
+    if generateBin():
+        os._exit(-1)
+    if addCrcToBin():
         os._exit(-1)
     return
 
