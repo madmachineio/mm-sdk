@@ -151,11 +151,11 @@ def compileSwift(target):
 
     if g_CHeader: 
         swiftFlags.append('-import-objc-header ' + '"%s"' % str(g_CHeader))
-    
+
     for item in g_SearchPaths:
         swiftFlags.append('-I ' + '"%s"' % str(item))
 
-    swiftFiles = (g_ProjectPath / 'Sources' / g_ProjectName).rglob("*.swift")
+    swiftFiles = sorted((g_ProjectPath / 'Sources' / g_ProjectName).rglob("*.swift"))
     for file in swiftFiles:
         swiftFlags.append('"%s"' % str(file))
 
@@ -180,7 +180,7 @@ def mergeObjects():
     targetName = '"%s"' % str(g_BuildPath / ('lib' + g_ProjectName + '.a'))
     arFlags.append(targetName)
 
-    files = g_BuildPath.glob("*.o")
+    files = sorted(g_BuildPath.glob("*.o"))
     for file in files:
         arFlags.append('"%s"' % str(file))
 
@@ -194,6 +194,96 @@ def mergeObjects():
     p.wait()
     return p.poll()
 
+def linkELF(step):
+    cmd = '"%s"' % str(getSDKTool('gpp'))
+
+    flags = [
+        '-mcpu=cortex-m7',
+        '-mthumb',
+        '-mfpu=fpv5-d16',
+        '-mfloat-abi=soft',
+        '-mabi=aapcs',
+        '-nostdlib',
+        '-static',
+        '-no-pie',
+        '-Wl,-u,_OffsetAbsSyms',
+        '-Wl,-u,_ConfigAbsSyms',
+        #'-Wl,--print-memory-usage',
+        '-Wl,-X',
+        '-Wl,-N',
+        '-Wl,--gc-sections',
+        '-Wl,--build-id=none',
+        '-Wl,--sort-common=descending',
+        '-Wl,--sort-section=alignment',
+        '-Wl,--no-enum-size-warning',
+        #'-Wl,--strip-all',
+        #'-Wl,--orphan-handling=warn',
+        #'-Wl,-Map=' + buildFolder + '/' + g_ProjectName + '.map',
+        #halPath + '/generated/empty_file.c.obj'
+    ]
+
+    if step == 'step2':
+        mapTarget = '"%s"' % str(g_BuildPath / g_ProjectName / '.map')
+        flags.append('-Wl,-Map=' + mapTarget)
+        flags.append('-Wl,--print-memory-usage')
+        linkScript = '"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker_pass_final.cmd')
+        flags.append('-Wl,-T ' + linkScript)
+        flags.append('"%s"' % str(g_BuildPath / 'isr_tables.c.obj'))
+    elif step == 'step1':
+        linkScript = '"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker.cmd')
+        flags.append('-Wl,-T ' + linkScript)  
+        flags.append('"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/empty_file.c.obj'))
+    
+    flags.append('-L' + '"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/lib/thumb/v7e-m'))
+    flags.append('-L' + '"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/gcc/lib/gcc/arm-none-eabi/7.3.1/thumb/v7e-m'))
+
+    flags.append('-Wl,--whole-archive')
+    flags.append('"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/swift/lib/swift/zephyr/thumbv7em/swiftrt.o'))
+    flags.append('"%s"' % str(g_BuildPath / ('lib' + g_ProjectName + '.a')))
+
+    librarFiles = sorted((g_SdkPath / 'hal/HalSwiftIOBoard/generated/whole').rglob("*.a"))
+    for file in librarFiles:
+        flags.append('"%s"' % str(file))
+
+    flags.append('-Wl,--no-whole-archive')
+
+    if step == 'step1':
+        #g_SearchPaths.append(g_BuildPath)
+        g_SearchPaths.append(g_SdkPath / 'hal/HalSwiftIOBoard/generated/no_whole')
+
+    print(g_SearchPaths)
+
+    flags.append('-Wl,--start-group')
+    for item in reversed(g_SearchPaths):
+        files = sorted(item.glob("*.a"))
+        for file in files:
+            flags.append('"%s"' % str(file))
+
+    
+    flags += [
+        #'-Wl,--start-group',
+        '-lgcc',
+        '-lstdc++',
+        '-lm',
+        '-lc',
+        '-Wl,--end-group',
+        '-o'
+    ]
+
+    if step == 'step1':
+        flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '_prebuilt.elf')))
+    elif step == 'step2':
+        flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '.elf')))
+
+    for item in flags:
+        cmd += ' ' + item
+
+    os.chdir(g_BuildPath)
+    if g_Verbose:
+        print(cmd)
+    p = subprocess.Popen(cmd, shell = True)
+    p.wait()
+    return p.poll()
 
 def buildLibrary():
     if compileSwift('module'):
@@ -204,6 +294,12 @@ def buildLibrary():
         os._exit(-1)
 
 def buildExecutable():
+    if compileSwift('exe'):
+        os._exit(-1)
+    if mergeObjects():
+        os._exit(-1)
+    if linkELF('step1'):
+        os._exit(-1)
     return
 
 def buildProject(args):
