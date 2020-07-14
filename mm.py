@@ -505,7 +505,7 @@ def buildProject(args):
     if args.header:
         g_CHeader = Path(args.header).resolve()
 
-    if args.g_Verbose:
+    if args.verbose:
         g_Verbose = True
 
     if sys.platform.startswith('darwin'):
