@@ -34,6 +34,8 @@ dependencies = [
     "SwiftIO",
 ]"""
 
+def quoteStr(path):
+    return '"%s"' % str(path)
 
 def generateToml(name, type):
     ret = sorted(Path('.').glob('*.mmswift'))
@@ -86,7 +88,6 @@ def parseTOML():
     os._exit(-1)
     
 
-
 def cleanBuild():
     files =  sorted(g_BuildPath.glob('*.bin'))
     files += g_BuildPath.glob('*.elf')
@@ -99,7 +100,6 @@ def cleanBuild():
     for file in files:
         file.unlink()
     return
-
 
 
 def getSDKTool(tool):
@@ -122,7 +122,7 @@ def getSDKTool(tool):
 
 
 def compileSwift(target):
-    cmd = '"%s"' % str(getSDKTool('swiftc'))
+    cmd = quoteStr(getSDKTool('swiftc'))
 
     swiftFlags = [
         '-module-name ' + g_ProjectName,
@@ -152,14 +152,14 @@ def compileSwift(target):
         os._exit(-1)
 
     if g_CHeader: 
-        swiftFlags.append('-import-objc-header ' + '"%s"' % str(g_CHeader))
+        swiftFlags.append('-import-objc-header ' + quoteStr(g_CHeader))
 
     for item in g_SearchPaths:
-        swiftFlags.append('-I ' + '"%s"' % str(item))
+        swiftFlags.append('-I ' + quoteStr(item))
 
     swiftFiles = sorted((g_ProjectPath / 'Sources' / g_ProjectName).rglob("*.swift"))
     for file in swiftFiles:
-        swiftFlags.append('"%s"' % str(file))
+        swiftFlags.append(quoteStr(file))
 
     for item in swiftFlags:
         cmd += ' ' + item
@@ -173,18 +173,18 @@ def compileSwift(target):
 
 
 def mergeObjects():
-    cmd = '"%s"' % str(getSDKTool('ar'))
+    cmd = quoteStr(getSDKTool('ar'))
 
     arFlags = [
         '-rcs'
     ]
 
-    targetName = '"%s"' % str(g_BuildPath / ('lib' + g_ProjectName + '.a'))
+    targetName = quoteStr(g_BuildPath / ('lib' + g_ProjectName + '.a'))
     arFlags.append(targetName)
 
     files = sorted(g_BuildPath.glob("*.o"))
     for file in files:
-        arFlags.append('"%s"' % str(file))
+        arFlags.append(quoteStr(file))
 
     for item in arFlags:
         cmd += ' ' + item
@@ -196,8 +196,9 @@ def mergeObjects():
     p.wait()
     return p.poll()
 
+
 def linkELF(step):
-    cmd = '"%s"' % str(getSDKTool('gpp'))
+    cmd = quoteStr(getSDKTool('gpp'))
 
     flags = [
         '-mcpu=cortex-m7',
@@ -225,27 +226,27 @@ def linkELF(step):
     ]
 
     if step == 'step2':
-        mapTarget = '"%s"' % str(g_BuildPath / (g_ProjectName + '.map'))
+        mapTarget = quoteStr(g_BuildPath / (g_ProjectName + '.map'))
         flags.append('-Wl,-Map=' + mapTarget)
         flags.append('-Wl,--print-memory-usage')
-        linkScript = '"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker_pass_final.cmd')
+        linkScript = quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker_pass_final.cmd')
         flags.append('-Wl,-T ' + linkScript)
-        flags.append('"%s"' % str(g_BuildPath / 'isr_tables.c.obj'))
+        flags.append(quoteStr(g_BuildPath / 'isr_tables.c.obj'))
     elif step == 'step1':
-        linkScript = '"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker.cmd')
+        linkScript = quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker.cmd')
         flags.append('-Wl,-T ' + linkScript)  
-        flags.append('"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/empty_file.c.obj'))
+        flags.append(quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/empty_file.c.obj'))
     
-    flags.append('-L' + '"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/lib/thumb/v7e-m'))
-    flags.append('-L' + '"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/gcc/lib/gcc/arm-none-eabi/7.3.1/thumb/v7e-m'))
+    flags.append('-L' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/lib/thumb/v7e-m'))
+    flags.append('-L' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/lib/gcc/arm-none-eabi/7.3.1/thumb/v7e-m'))
 
     flags.append('-Wl,--whole-archive')
-    flags.append('"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/swift/lib/swift/zephyr/thumbv7em/swiftrt.o'))
-    flags.append('"%s"' % str(g_BuildPath / ('lib' + g_ProjectName + '.a')))
+    flags.append(quoteStr(g_SdkPath / g_ToolBase / 'toolchains/swift/lib/swift/zephyr/thumbv7em/swiftrt.o'))
+    flags.append(quoteStr(g_BuildPath / ('lib' + g_ProjectName + '.a')))
 
     librarFiles = sorted((g_SdkPath / 'hal/HalSwiftIOBoard/generated/whole').rglob("*.a"))
     for file in librarFiles:
-        flags.append('"%s"' % str(file))
+        flags.append(quoteStr(file))
 
     flags.append('-Wl,--no-whole-archive')
 
@@ -253,14 +254,13 @@ def linkELF(step):
         #g_SearchPaths.append(g_BuildPath)
         g_SearchPaths.append(g_SdkPath / 'hal/HalSwiftIOBoard/generated/no_whole')
 
-    print(g_SearchPaths)
+    #print(g_SearchPaths)
 
     flags.append('-Wl,--start-group')
     for item in reversed(g_SearchPaths):
         files = sorted(item.glob("*.a"))
         for file in files:
-            flags.append('"%s"' % str(file))
-
+            flags.append(quoteStr(file))
     
     flags += [
         #'-Wl,--start-group',
@@ -273,9 +273,9 @@ def linkELF(step):
     ]
 
     if step == 'step1':
-        flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '_prebuilt.elf')))
+        flags.append(quoteStr(g_BuildPath / (g_ProjectName + '_prebuilt.elf')))
     elif step == 'step2':
-        flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '.elf')))
+        flags.append(quoteStr(g_BuildPath / (g_ProjectName + '.elf')))
 
     for item in flags:
         cmd += ' ' + item
@@ -289,13 +289,13 @@ def linkELF(step):
 
 
 def generateIsr():
-    cmd = '"%s"' % str(getSDKTool('objcopy'))
+    cmd = quoteStr(getSDKTool('objcopy'))
 
     flags = [
         '-I elf32-littlearm',
         '-O binary',
         '--only-section=.intList',
-        '"%s"' % str(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
+        quoteStr(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
         'isrList.bin'
     ]
 
@@ -309,13 +309,14 @@ def generateIsr():
     p.wait()
     return p.poll()
 
+
 def generateIsrTable():
-    cmd = '"%s"' % str(getSDKTool('gen_isr_tables'))
+    cmd = quoteStr(getSDKTool('gen_isr_tables'))
 
     flags = [
         '--output-source',
         'isr_tables.c',
-        '--kernel ' + '"%s"' % str(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
+        '--kernel ' + quoteStr(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
         '--intlist',
         'isrList.bin',
         '--sw-isr-table',
@@ -332,8 +333,9 @@ def generateIsrTable():
     p.wait()
     return p.poll()
 
+
 def compileIsr():
-    cmd = '"%s"' % str(getSDKTool('gcc'))
+    cmd = quoteStr(getSDKTool('gcc'))
 
     includePath = [
         'hal/HalSwiftIOBoard/zephyr/include',
@@ -387,12 +389,12 @@ def compileIsr():
     ]
 
     for item in includePath:
-        flags.append('-I' + '"%s"' % str(g_SdkPath / item))
+        flags.append('-I' + quoteStr(g_SdkPath / item))
     
-    flags.append('-isystem ' + '"%s"' % str(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/include'))
-    flags.append('-imacros ' + '"%s"' % str(g_SdkPath / 'hal/HalSwiftIOBoard/generated/autoconf.h'))
-    flags.append('-o ' + '"%s"' % (g_BuildPath / 'isr_tables.c.obj'))
-    flags.append('-c ' + '"%s"' % (g_BuildPath / 'isr_tables.c'))
+    flags.append('-isystem ' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/include'))
+    flags.append('-imacros ' + quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/autoconf.h'))
+    flags.append('-o ' + quoteStr(g_BuildPath / 'isr_tables.c.obj'))
+    flags.append('-c ' + quoteStr(g_BuildPath / 'isr_tables.c'))
 
     for item in flags:
         cmd += ' ' + item
@@ -404,8 +406,9 @@ def compileIsr():
     p.wait()
     return p.poll()
 
+
 def generateBin():
-    cmd = '"%s"' % str(getSDKTool('objcopy'))
+    cmd = quoteStr(getSDKTool('objcopy'))
 
     flags = [
         '-S',
@@ -420,8 +423,8 @@ def generateBin():
         '.eh_frame'
     ]
 
-    flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '.elf')))
-    flags.append('"%s"' % str(g_BuildPath / (g_ProjectName + '.bin')))
+    flags.append(quoteStr(g_BuildPath / (g_ProjectName + '.elf')))
+    flags.append(quoteStr(g_BuildPath / (g_ProjectName + '.bin')))
 
     for item in flags:
         cmd += ' ' + item
@@ -433,24 +436,26 @@ def generateBin():
     p.wait()
     return p.poll()
 
+
 def int32_to_int8(n):
     mask = (1 << 8) - 1
     return [(n >> k) & mask for k in range(0, 32, 8)]
 
+
 def addCrcToBin():
     data = (g_BuildPath / (g_ProjectName + '.bin')).read_bytes()
     value = crc32(data)
-    print(value)
     list_dec = int32_to_int8(value)
 
     targetFile = (g_BuildPath / 'swiftio.bin')
 
     os.chdir(g_BuildPath)
-    with open(targetFile, 'wb') as f1:
-        f1.write(data)
-        for x in list_dec:
-            a = struct.pack('B', x)
-            f1.write(a)
+    with open(targetFile, 'wb') as file:
+        file.write(data)
+        for number in list_dec:
+            byte = struct.pack('B', number)
+            file.write(byte)
+
 
 def buildLibrary():
     if compileSwift('module'):
@@ -496,7 +501,6 @@ def buildProject(args):
     g_ProjectPath = Path('.').resolve()
     g_BuildPath = Path('.build').resolve()
     g_SdkPath = Path(args.sdk).resolve()
-    print(g_SdkPath)
 
     if args.header:
         g_CHeader = Path(args.header).resolve()
@@ -511,11 +515,10 @@ def buildProject(args):
     elif sys.platform.startswith('linux'):
         g_ToolBase = 'tools_linux'
 
-    if args.module:
-        modulePath = Path(args.module).resolve()
+    if args.library:
+        modulePath = Path(args.library).resolve()
     else:
         modulePath = (Path.home() / 'Documents' / 'MadMachine' / 'Library').resolve()
-
 
     # Parse name, type, dependencies
     tomlDic = parseTOML()
@@ -534,20 +537,20 @@ def buildProject(args):
         buildExecutable()
 
 
-def initArgs():
+def parseArgs():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
     initParser = subparsers.add_parser('init', help = 'Initiaize a new project. If not specified, project name depends on the current directory name')
-    initParser.add_argument('-n', '--name', type = str, help = 'Initiaize a new project with given name')
+    initParser.add_argument('-n', '--name', type = str, help = 'Initiaize a new project with a specified name')
     initParser.add_argument("-t", "--type", type = str, choices = ['exe', 'lib'], default = 'exe', help = "Project type, default type is executable")
     initParser.set_defaults(func = initProject)
 
     buildParser = subparsers.add_parser('build', help = 'Build a project, build type(executable/library) depends on the project file')
-    buildParser.add_argument("--sdk", type = str, required = True, help = "SDK path")
-    buildParser.add_argument("--module", type = str, help = "Swift module search path")
-    buildParser.add_argument("--header", type = str, help = "C header file")
-    buildParser.add_argument("-v", "--g_Verbose", action = 'store_true', help = "Increase output verbosity")
+    buildParser.add_argument('--sdk', type = str, required = True, help = "SDK path")
+    buildParser.add_argument('-l', '--library', type = str, help = "Libraries path")
+    buildParser.add_argument('--header', type = str, help = "C header file")
+    buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
 
     args = parser.parse_args()
@@ -555,4 +558,4 @@ def initArgs():
 
 
 if __name__ == '__main__':
-    initArgs()
+    parseArgs()
