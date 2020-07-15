@@ -118,7 +118,39 @@ def getSDKTool(tool):
         value = (g_SdkPath / g_ToolBase / 'toolchains/gcc/bin/arm-none-eabi-objcopy')
     elif tool == 'gen_isr_tables':
         value = (g_SdkPath / g_ToolBase / 'scripts/dist/gen_isr_tables/gen_isr_tables')
+    elif tool == 'mm':
+        value = (g_SdkPath / g_ToolBase / 'scripts/dist/mm/mm')
     return value
+
+
+def resolveModule(modulePath, moduleName):
+    ret = sorted(modulePath.glob(moduleName + '*'))
+    if ret:
+        realPath = ret[0]
+    else:
+        print("Can't find module " + moduleName)
+        os._exit(-1)
+
+    buildPath = realPath / '.build'
+
+    if buildPath.exists():
+        swiftModule = sorted(buildPath.glob(moduleName + '.swiftmodule'))
+        staticLibrary = sorted(buildPath.glob('lib' + moduleName + '.a'))
+        if swiftModule and staticLibrary:
+            return buildPath
+
+    print('Start to compile module: ' + moduleName)
+    buildPath.mkdir(exist_ok = True)
+
+    os.chdir(realPath)
+    cmd = quoteStr(getSdkTool('mm'))
+    cmd += ' --sdk ' + quoteStr(g_SdkPath)
+    p = subprocess.Popen(cmd, shell = True)
+    p.wait()
+    if p.poll():
+        print('Compile ' + moduleName + ' failed!')
+        os._exit(-1)
+    return buildPath
 
 
 def compileSwift(target):
@@ -486,6 +518,7 @@ def buildExecutable():
         os._exit(-1)
     return
 
+
 def buildProject(args):
     global g_ProjectPath
     global g_BuildPath
@@ -502,9 +535,6 @@ def buildProject(args):
     g_BuildPath = Path('.build').resolve()
     g_SdkPath = Path(args.sdk).resolve()
 
-    if args.header:
-        g_CHeader = Path(args.header).resolve()
-
     if args.verbose:
         g_Verbose = True
 
@@ -515,16 +545,19 @@ def buildProject(args):
     elif sys.platform.startswith('linux'):
         g_ToolBase = 'tools_linux'
 
-    if args.library:
-        modulePath = Path(args.library).resolve()
+    if args.module:
+        modulePath = Path(args.module).resolve()
     else:
         modulePath = (Path.home() / 'Documents' / 'MadMachine' / 'Library').resolve()
 
     # Parse name, type, dependencies
     tomlDic = parseTOML()
     g_ProjectName = tomlDic['name']
-    for module in tomlDic['dependencies']:
-        g_SearchPaths.append(modulePath / module / '.build')
+    if tomlDic.get('header'):
+        g_CHeader = Path(tomlDic['header']).resolve()
+
+    for moduleName in tomlDic['dependencies']:
+        g_SearchPaths.append(resolveModule(modulePath, moduleName))
 
     g_SearchPaths.append(getSDKTool('stdPath'))
 
@@ -548,8 +581,7 @@ def parseArgs():
 
     buildParser = subparsers.add_parser('build', help = 'Build a project, build type(executable/library) depends on the project file')
     buildParser.add_argument('--sdk', type = str, required = True, help = "SDK path")
-    buildParser.add_argument('-l', '--library', type = str, help = "Libraries path")
-    buildParser.add_argument('--header', type = str, help = "C header file")
+    buildParser.add_argument('-m', '--module', type = str, help = "Swift module search path")
     buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
 
