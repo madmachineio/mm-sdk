@@ -139,16 +139,18 @@ def resolveModule(modulePath, moduleName):
         if swiftModule and staticLibrary:
             return buildPath
 
-    print('Start to compile module: ' + moduleName)
+    print('Start building module ' + moduleName)
     buildPath.mkdir(exist_ok = True)
 
     os.chdir(realPath)
     cmd = quoteStr(getSdkTool('mm'))
     cmd += ' --sdk ' + quoteStr(g_SdkPath)
+    if g_Verbose:
+        print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Compile ' + moduleName + ' failed!')
+        print('Building module ' + moduleName + ' failed!')
         os._exit(-1)
     return buildPath
 
@@ -162,7 +164,6 @@ def compileSwift(target):
         '-target-cpu cortex-m7',
         '-target-fpu fpv5-dp-d16',
         '-float-abi soft',
-        #'-parse-as-library',
         '-O',
         '-static-stdlib',
         '-function-sections',
@@ -173,11 +174,11 @@ def compileSwift(target):
     ]
 
     if target == 'module':
-        swiftFlags.insert(0, '-parse-as-library')
         swiftFlags.insert(0, '-emit-module')
-    elif target == 'object':
         swiftFlags.insert(0, '-parse-as-library')
+    elif target == 'object':
         swiftFlags.insert(0, '-c')
+        swiftFlags.insert(0, '-parse-as-library')
     elif target == 'exe':
         swiftFlags.insert(0, '-c')
     else:
@@ -201,7 +202,9 @@ def compileSwift(target):
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
-    return p.poll()
+    if p.poll():
+        print('Compiling swift files failed!')
+        os._exit(-1)
 
 
 def mergeObjects():
@@ -226,7 +229,9 @@ def mergeObjects():
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
-    return p.poll()
+    if p.poll():
+        print('Archiving objects failed!')
+        os._exit(-1)
 
 
 def linkELF(step):
@@ -317,7 +322,9 @@ def linkELF(step):
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
-    return p.poll()
+    if p.poll():
+        print('Linking failed!')
+        os._exit(-1)
 
 
 def generateIsr():
@@ -339,7 +346,10 @@ def generateIsr():
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
-    return p.poll()
+    if p.poll():
+        print('Generating isrList.bin failed!')
+        os._exit(-1)
+
 
 
 def generateIsrTable():
@@ -363,7 +373,9 @@ def generateIsrTable():
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
-    return p.poll()
+    if p.poll():
+        print('Generating ISR C code failed!')
+        os._exit(-1)
 
 
 def compileIsr():
@@ -436,7 +448,9 @@ def compileIsr():
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
-    return p.poll()
+    if p.poll():
+        print('Compiling ISR C code failed!')
+        os._exit(-1)
 
 
 def generateBin():
@@ -466,7 +480,9 @@ def generateBin():
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
-    return p.poll()
+    if p.poll():
+        print('Generating binary failed!')
+        os._exit(-1)
 
 
 def int32_to_int8(n):
@@ -490,33 +506,21 @@ def addCrcToBin():
 
 
 def buildLibrary():
-    if compileSwift('module'):
-        os._exit(-1)
-    if compileSwift('object'):
-        os._exit(-1)
-    if mergeObjects():
-        os._exit(-1)
+    compileSwift('module')
+    compileSwift('object')
+    mergeObjects()
+
 
 def buildExecutable():
-    if compileSwift('exe'):
-        os._exit(-1)
-    if mergeObjects():
-        os._exit(-1)
-    if linkELF('step1'):
-        os._exit(-1)
-    if generateIsr():
-        os._exit(-1)
-    if generateIsrTable():
-        os._exit(-1)
-    if compileIsr():
-        os._exit(-1)
-    if linkELF('step2'):
-        os._exit(-1)
-    if generateBin():
-        os._exit(-1)
-    if addCrcToBin():
-        os._exit(-1)
-    return
+    compileSwift('exe')
+    mergeObjects()
+    linkELF('step1')
+    generateIsr()
+    generateIsrTable()
+    compileIsr()
+    linkELF('step2')
+    generateBin()
+    addCrcToBin()
 
 
 def buildProject(args):
@@ -574,14 +578,14 @@ def parseArgs():
     parser = argparse.ArgumentParser()
     subparsers = parser.add_subparsers()
 
-    initParser = subparsers.add_parser('init', help = 'Initiaize a new project. If not specified, project name depends on the current directory name')
-    initParser.add_argument('-n', '--name', type = str, help = 'Initiaize a new project with a specified name')
+    initParser = subparsers.add_parser('init', help = 'Initiaize a new project. Could be either an executable or a library')
+    initParser.add_argument('-n', '--name', type = str, help = 'Initiaize the new project with a specified name, otherwise the project name depends on the current directory name')
     initParser.add_argument("-t", "--type", type = str, choices = ['exe', 'lib'], default = 'exe', help = "Project type, default type is executable")
     initParser.set_defaults(func = initProject)
 
-    buildParser = subparsers.add_parser('build', help = 'Build a project, build type(executable/library) depends on the project file')
+    buildParser = subparsers.add_parser('build', help = 'Build a project')
     buildParser.add_argument('--sdk', type = str, required = True, help = "SDK path")
-    buildParser.add_argument('-m', '--module', type = str, help = "Swift module search path")
+    buildParser.add_argument('-m', '--module', type = str, help = "Swift module search path. If not specified, default path is user's Documents/MadMachine/Library")
     buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
 
