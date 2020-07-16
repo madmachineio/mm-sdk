@@ -562,7 +562,7 @@ def buildProject(args):
     else:
         modulePath = (Path.home() / 'Documents' / 'MadMachine' / 'Library').resolve()
 
-    if not Path(args.module).exists()::
+    if not Path(args.module).exists():
         print('Error: Can not find module path: ' + str(modulePath))
         os._exit(-1)
 
