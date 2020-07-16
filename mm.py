@@ -41,7 +41,7 @@ def generateToml(name, type):
     ret = sorted(Path('.').glob('*.mmswift'))
 
     if ret:
-        print('Project ' + ret[0].name + ' already exist, initiaization failed!')
+        print('Error: Project ' + ret[0].name + ' already exist, initiaization failed!')
         os._exit(-1)
 
     Path('./' + name + '.mmswift').touch(exist_ok = True)
@@ -76,7 +76,7 @@ def parseTOML():
             try:
                 tomlDic = toml.loads(tomlString)
             except:
-                print('Project file ' + ret[0].name + ' decoding failed!')
+                print('Error: Project file ' + ret[0].name + ' decoding failed!')
                 os._exit(-1)
         else:
             ret[0].write_text(defaultExeToml)
@@ -128,7 +128,7 @@ def resolveModule(modulePath, moduleName):
     if ret:
         realPath = ret[0]
     else:
-        print("Can't find module " + moduleName)
+        print("Error: Can not find module " + moduleName)
         os._exit(-1)
 
     buildPath = realPath / '.build'
@@ -152,7 +152,7 @@ def resolveModule(modulePath, moduleName):
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Building module ' + moduleName + ' failed!')
+        print('Error: Building module ' + moduleName + ' failed!')
         os._exit(-1)
     return buildPath
 
@@ -205,7 +205,7 @@ def compileSwift(target):
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Compiling swift files failed!')
+        print('Error: Compiling swift files failed!')
         os._exit(-1)
 
 
@@ -232,7 +232,7 @@ def mergeObjects():
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Archiving objects failed!')
+        print('Error: Archiving objects failed!')
         os._exit(-1)
 
 
@@ -325,7 +325,7 @@ def linkELF(step):
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Linking failed!')
+        print('Error: Linking failed!')
         os._exit(-1)
 
 
@@ -349,7 +349,7 @@ def generateIsr():
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Generating isrList.bin failed!')
+        print('Error: Generating isrList.bin failed!')
         os._exit(-1)
 
 
@@ -376,7 +376,7 @@ def generateIsrTable():
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Generating ISR C code failed!')
+        print('Error: Generating ISR C code failed!')
         os._exit(-1)
 
 
@@ -451,7 +451,7 @@ def compileIsr():
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Compiling ISR C code failed!')
+        print('Error: Compiling ISR C code failed!')
         os._exit(-1)
 
 
@@ -483,7 +483,7 @@ def generateBin():
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('Generating binary failed!')
+        print('Error: Generating binary failed!')
         os._exit(-1)
 
 
@@ -508,14 +508,14 @@ def addCrcToBin():
 
 
 def buildLibrary():
-    print('Start building library ' + g_ProjectName + '...')
+    print('Building library ' + g_ProjectName + '...')
     compileSwift('module')
     compileSwift('object')
     mergeObjects()
 
 
 def buildExecutable():
-    print('Start building executable ' + g_ProjectName + '...')
+    print('Building executable ' + g_ProjectName + '...')
     compileSwift('exe')
     mergeObjects()
     linkELF('step1')
@@ -540,7 +540,12 @@ def buildProject(args):
     global g_Verbose
 
     g_ProjectPath = Path('.').resolve()
-    g_SdkPath = Path(args.sdk).resolve()
+
+    if Path(args.sdk).exists():
+        g_SdkPath = Path(args.sdk).resolve()
+    else:
+        print('Error: Can not find SDK path: ' + str(args.sdk))
+        os._exit(-1)
 
     if args.verbose:
         g_Verbose = True
@@ -557,6 +562,10 @@ def buildProject(args):
     else:
         modulePath = (Path.home() / 'Documents' / 'MadMachine' / 'Library').resolve()
 
+    if not Path(args.module).exists()::
+        print('Error: Can not find module path: ' + str(modulePath))
+        os._exit(-1)
+
     # Parse name, type, dependencies, c header
     tomlDic = parseTOML()
     g_ProjectName = tomlDic['name']
@@ -567,7 +576,6 @@ def buildProject(args):
         g_SearchPaths.append(resolveModule(modulePath, moduleName))
 
     g_SearchPaths.append(getSdkTool('stdPath'))
-
 
     g_BuildPath = g_ProjectPath / '.build'
     g_BuildPath.mkdir(exist_ok = True)
