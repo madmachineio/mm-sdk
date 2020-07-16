@@ -529,8 +529,8 @@ def buildExecutable():
 
 def buildProject(args):
     global g_ProjectPath
-    global g_BuildPath
     global g_SdkPath
+    global g_BuildPath
 
     global g_SearchPaths
 
@@ -540,7 +540,6 @@ def buildProject(args):
     global g_Verbose
 
     g_ProjectPath = Path('.').resolve()
-    g_BuildPath = Path('.build').resolve()
     g_SdkPath = Path(args.sdk).resolve()
 
     if args.verbose:
@@ -569,6 +568,8 @@ def buildProject(args):
 
     g_SearchPaths.append(getSdkTool('stdPath'))
 
+
+    g_BuildPath = g_ProjectPath / '.build'
     g_BuildPath.mkdir(exist_ok = True)
     cleanBuild()
 
