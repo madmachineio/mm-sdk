@@ -141,11 +141,11 @@ def resolveModule(modulePath, moduleName):
 
     buildPath.mkdir(exist_ok = True)
 
-    os.chdir(realPath)
-    print(Path('.').resolve)
     cmd = quoteStr(getSdkTool('mm'))
     cmd += ' build --sdk '
     cmd += quoteStr(g_SdkPath)
+
+    os.chdir(realPath)
     if g_Verbose:
         cmd += ' -v'
         print(cmd)
