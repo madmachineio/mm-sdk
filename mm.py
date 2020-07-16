@@ -102,7 +102,7 @@ def cleanBuild():
     return
 
 
-def getSDKTool(tool):
+def getSdkTool(tool):
     value = ''
     if tool == 'swiftc':
         value = (g_SdkPath / g_ToolBase / 'toolchains/swift/bin/swiftc')
@@ -139,13 +139,14 @@ def resolveModule(modulePath, moduleName):
         if swiftModule and staticLibrary:
             return buildPath
 
-    print('Start building module ' + moduleName)
     buildPath.mkdir(exist_ok = True)
 
     os.chdir(realPath)
     cmd = quoteStr(getSdkTool('mm'))
-    cmd += ' --sdk ' + quoteStr(g_SdkPath)
+    cmd += ' build --sdk '
+    cmd += quoteStr(g_SdkPath)
     if g_Verbose:
+        cmd += ' -v'
         print(cmd)
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
@@ -156,7 +157,7 @@ def resolveModule(modulePath, moduleName):
 
 
 def compileSwift(target):
-    cmd = quoteStr(getSDKTool('swiftc'))
+    cmd = quoteStr(getSdkTool('swiftc'))
 
     swiftFlags = [
         '-module-name ' + g_ProjectName,
@@ -208,7 +209,7 @@ def compileSwift(target):
 
 
 def mergeObjects():
-    cmd = quoteStr(getSDKTool('ar'))
+    cmd = quoteStr(getSdkTool('ar'))
 
     arFlags = [
         '-rcs'
@@ -235,7 +236,7 @@ def mergeObjects():
 
 
 def linkELF(step):
-    cmd = quoteStr(getSDKTool('gpp'))
+    cmd = quoteStr(getSdkTool('gpp'))
 
     flags = [
         '-mcpu=cortex-m7',
@@ -328,7 +329,7 @@ def linkELF(step):
 
 
 def generateIsr():
-    cmd = quoteStr(getSDKTool('objcopy'))
+    cmd = quoteStr(getSdkTool('objcopy'))
 
     flags = [
         '-I elf32-littlearm',
@@ -353,7 +354,7 @@ def generateIsr():
 
 
 def generateIsrTable():
-    cmd = quoteStr(getSDKTool('gen_isr_tables'))
+    cmd = quoteStr(getSdkTool('gen_isr_tables'))
 
     flags = [
         '--output-source',
@@ -379,7 +380,7 @@ def generateIsrTable():
 
 
 def compileIsr():
-    cmd = quoteStr(getSDKTool('gcc'))
+    cmd = quoteStr(getSdkTool('gcc'))
 
     includePath = [
         'hal/HalSwiftIOBoard/zephyr/include',
@@ -454,7 +455,7 @@ def compileIsr():
 
 
 def generateBin():
-    cmd = quoteStr(getSDKTool('objcopy'))
+    cmd = quoteStr(getSdkTool('objcopy'))
 
     flags = [
         '-S',
@@ -506,12 +507,14 @@ def addCrcToBin():
 
 
 def buildLibrary():
+    print('Start building library ' + g_ProjectName + '...')
     compileSwift('module')
     compileSwift('object')
     mergeObjects()
 
 
 def buildExecutable():
+    print('Start building executable ' + g_ProjectName + '...')
     compileSwift('exe')
     mergeObjects()
     linkELF('step1')
@@ -554,7 +557,7 @@ def buildProject(args):
     else:
         modulePath = (Path.home() / 'Documents' / 'MadMachine' / 'Library').resolve()
 
-    # Parse name, type, dependencies
+    # Parse name, type, dependencies, c header
     tomlDic = parseTOML()
     g_ProjectName = tomlDic['name']
     if tomlDic.get('header'):
@@ -563,7 +566,7 @@ def buildProject(args):
     for moduleName in tomlDic['dependencies']:
         g_SearchPaths.append(resolveModule(modulePath, moduleName))
 
-    g_SearchPaths.append(getSDKTool('stdPath'))
+    g_SearchPaths.append(getSdkTool('stdPath'))
 
     g_BuildPath.mkdir(exist_ok = True)
     cleanBuild()
