@@ -90,13 +90,13 @@ def parseTOML():
 
 def cleanBuild():
     files =  sorted(g_BuildPath.glob('*.bin'))
-    files += g_BuildPath.glob('*.elf')
-    files += g_BuildPath.glob('*.map')
-    files += g_BuildPath.glob('*.a')
-    files += g_BuildPath.glob('*.o*')
-    files += g_BuildPath.glob('*.c')
-    files += g_BuildPath.glob('*.swiftmodule')
-    files += g_BuildPath.glob('*.swiftdoc')
+    files += sorted(g_BuildPath.glob('*.elf'))
+    files += sorted(g_BuildPath.glob('*.map'))
+    files += sorted(g_BuildPath.glob('*.a'))
+    files += sorted(g_BuildPath.glob('*.o*'))
+    files += sorted(g_BuildPath.glob('*.c'))
+    files += sorted(g_BuildPath.glob('*.swiftmodule'))
+    files += sorted(g_BuildPath.glob('*.swiftdoc'))
     for file in files:
         file.unlink()
     return
