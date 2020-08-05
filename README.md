@@ -1,3 +1,5 @@
+Join our [community](https://discord.gg/zZ9bFHK) to chat : ) Any feedback is welcomed!
+
 # MM SDK
 
 The mm-sdk contains eveything you need to build a MadMachine project, either a library or an executable.
