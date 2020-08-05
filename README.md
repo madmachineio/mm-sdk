@@ -83,3 +83,14 @@ If the dependent library is not builded yet, the Python script would build the l
 cd ~/DemoProgram
 ~/mm-sdk/tools_mac/scripts/dist/mm/mm build --sdk ~/mm-sdk --module ~/mm-sdk/Library
 ```
+
+## Download an executable
+
+After a successful building, there would be `.build/swiftio.bin` in your project directory. Note that the `.build` directory is hiden by default.
+
+Follow those steps to download the executable:
+
+1. Insert SD card and confirm USB connection(Press the **Download** button and wait the onboard RGB turns to **green**)
+2. A USB drive would be mounted on your computer
+3. Copy the `swiftio.bin` to the SD card root directory
+4. Eject the USB drive and the program would run automatically
