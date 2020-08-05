@@ -2,11 +2,11 @@
 
 The mm-sdk contains eveything you need to build a MadMachine project, either a library or an executable.
 
-A MadMachine project is structured like a SPM package. A Python script is used to build the project now and it would be replaced by Swift Package Manager in the futrue.
+A MadMachine project is structured like a [SPM package](https://swift.org/package-manager). A Python script is used to build the project now and it would be replaced by Swift Package Manager in the futrue.
 
 The latest features would be added to this SDK first and then integrated into the MadMachine IDE.
 
-Download the latest version [here]() depending on your operating system.
+Download the latest release depending on your operating system.
 
 # What is inside the SDK
 
