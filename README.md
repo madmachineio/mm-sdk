@@ -60,7 +60,7 @@ cd DemoProgram
 
 ## Add the `DemoLibrary` as a dependency to `DemoProgram`
 
-1. Open the `DemoProgram.mmswift` by any text editor
+1. Open the `DemoProgram.mmp` by any text editor
 2. Add `"DemoLibrary"` in the `dependecies`
 3. Save and quit
 4. Then you can `import DemoLibrary` in project `DemoProgram`
