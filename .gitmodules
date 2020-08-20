@@ -1,6 +1,6 @@
-[submodule "Library/SwiftIO"]
-	path = Library/SwiftIO
-	url = https://github.com/madmachineio/SwiftIO
 [submodule "Examples"]
 	path = Examples
 	url = https://github.com/madmachineio/Examples
+[submodule "Library"]
+	path = Library
+	url = https://github.com/madmachineio/Library
