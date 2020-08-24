@@ -148,7 +148,7 @@ def resolveModule(modulePath, moduleName):
     cmd += quoteStr(g_SdkPath)
 
     cmd += ' --module '
-    cmd += str(modulePath)
+    cmd += quoteStr(modulePath)
 
     os.chdir(realPath)
     if g_Verbose:
