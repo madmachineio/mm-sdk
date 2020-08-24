@@ -566,10 +566,10 @@ def buildProject(args):
     elif sys.platform.startswith('linux'):
         g_ToolBase = 'tools_linux'
 
-    if args.module:
-        modulePath = Path(args.module).resolve()
-    else:
-        modulePath = (Path.home() / 'Documents' / 'MadMachine' / 'Library').resolve()
+    #if args.module:
+    modulePath = Path(args.module).resolve()
+    #else:
+    #    modulePath = (Path.home() / 'Documents' / 'MadMachine' / 'Library').resolve()
 
     if not modulePath.exists():
         print('Error: Can not find module path: ' + str(modulePath))
