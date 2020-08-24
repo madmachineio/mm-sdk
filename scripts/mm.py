@@ -147,6 +147,9 @@ def resolveModule(modulePath, moduleName):
     cmd += ' build --sdk '
     cmd += quoteStr(g_SdkPath)
 
+    cmd += ' --module '
+    cmd += str(modulePath)
+
     os.chdir(realPath)
     if g_Verbose:
         cmd += ' -v'
@@ -604,7 +607,7 @@ def parseArgs():
 
     buildParser = subparsers.add_parser('build', help = 'Build a project')
     buildParser.add_argument('--sdk', type = str, required = True, help = "SDK path")
-    buildParser.add_argument('-m', '--module', type = str, help = "Swift module search path. If not specified, default path is user's Documents/MadMachine/Library")
+    buildParser.add_argument('-m', '--module', type = str, required = True, help = "Swift module search path.")
     buildParser.add_argument('--rebuild', action = 'store_true', help = "Rebuild all related projects, add this option if you did some changes to the related library")
     buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
