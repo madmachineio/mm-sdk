@@ -241,7 +241,7 @@ def mergeObjects():
         os._exit(-1)
 
 
-def linkELF(step):
+def linkELF():
     cmd = quoteStr(getSdkTool('gpp'))
 
     flags = [
@@ -255,7 +255,7 @@ def linkELF(step):
         '-no-pie',
         '-Wl,-u,_OffsetAbsSyms',
         '-Wl,-u,_ConfigAbsSyms',
-        #'-Wl,--print-memory-usage',
+        '-Wl,--print-memory-usage',
         '-Wl,-X',
         '-Wl,-N',
         '-Wl,--gc-sections',
@@ -269,34 +269,26 @@ def linkELF(step):
         #halPath + '/generated/empty_file.c.obj'
     ]
 
-    if step == 'step2':
-        mapTarget = quoteStr(g_BuildPath / (g_ProjectName + '.map'))
-        flags.append('-Wl,-Map=' + mapTarget)
-        flags.append('-Wl,--print-memory-usage')
-        linkScript = quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker_pass_final.cmd')
-        flags.append('-Wl,-T ' + linkScript)
-        flags.append(quoteStr(g_BuildPath / 'isr_tables.c.obj'))
-    elif step == 'step1':
-        linkScript = quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/linker.cmd')
-        flags.append('-Wl,-T ' + linkScript)  
-        flags.append(quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/empty_file.c.obj'))
+    mapTarget = quoteStr(g_BuildPath / (g_ProjectName + '.map'))
+    flags.append('-Wl,-Map=' + mapTarget)
+    linkScript = quoteStr(g_SdkPath / 'boards/SwiftIOBoard/nofp/linker_pass_final.cmd')
+    flags.append('-Wl,-T ' + linkScript)
+    flags.append(quoteStr(g_SdkPath / 'boards/SwiftIOBoard/nofp/lib/isr_tables_global.c.obj'))
     
-    flags.append('-L' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/lib/thumb/v7e-m'))
-    flags.append('-L' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/lib/gcc/arm-none-eabi/7.3.1/thumb/v7e-m'))
+    flags.append('-L' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/lib/thumb/v7e-m/nofp'))
+    flags.append('-L' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/lib/gcc/arm-none-eabi/9.3.1/thumb/v7e-m/nofp'))
 
     flags.append('-Wl,--whole-archive')
     flags.append(quoteStr(g_SdkPath / g_ToolBase / 'toolchains/swift/lib/swift/zephyr/thumbv7em/swiftrt.o'))
     flags.append(quoteStr(g_BuildPath / ('lib' + g_ProjectName + '.a')))
 
-    librarFiles = sorted((g_SdkPath / 'hal/HalSwiftIOBoard/generated/whole').rglob("*.a"))
+    librarFiles = sorted((g_SdkPath / 'boards/SwiftIOBoard/nofp/lib/whole').rglob("*.a"))
     for file in librarFiles:
         flags.append(quoteStr(file))
 
     flags.append('-Wl,--no-whole-archive')
 
-    if step == 'step1':
-        #g_SearchPaths.append(g_BuildPath)
-        g_SearchPaths.append(g_SdkPath / 'hal/HalSwiftIOBoard/generated/no_whole')
+    g_SearchPaths.append(g_SdkPath / 'boards/SwiftIOBoard/nofp/lib//nowhole')
 
     #print(g_SearchPaths)
 
@@ -316,10 +308,8 @@ def linkELF(step):
         '-o'
     ]
 
-    if step == 'step1':
-        flags.append(quoteStr(g_BuildPath / (g_ProjectName + '_prebuilt.elf')))
-    elif step == 'step2':
-        flags.append(quoteStr(g_BuildPath / (g_ProjectName + '.elf')))
+
+    flags.append(quoteStr(g_BuildPath / (g_ProjectName + '.elf')))
 
     for item in flags:
         cmd += ' ' + item
@@ -333,131 +323,6 @@ def linkELF(step):
         print('Error: Linking failed!')
         os._exit(-1)
 
-
-def generateIsr():
-    cmd = quoteStr(getSdkTool('objcopy'))
-
-    flags = [
-        '-I elf32-littlearm',
-        '-O binary',
-        '--only-section=.intList',
-        quoteStr(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
-        'isrList.bin'
-    ]
-
-    for item in flags:
-        cmd += ' ' + item
-
-    os.chdir(g_BuildPath)
-    if g_Verbose:
-        print(cmd)
-    p = subprocess.Popen(cmd, shell = True)
-    p.wait()
-    if p.poll():
-        print('Error: Generating isrList.bin failed!')
-        os._exit(-1)
-
-
-
-def generateIsrTable():
-    cmd = quoteStr(getSdkTool('gen_isr_tables'))
-
-    flags = [
-        '--output-source',
-        'isr_tables.c',
-        '--kernel ' + quoteStr(g_BuildPath / (g_ProjectName + '_prebuilt.elf')),
-        '--intlist',
-        'isrList.bin',
-        '--sw-isr-table',
-        '--vector-table'
-    ]
-
-    for item in flags:
-        cmd += ' ' + item
-
-    os.chdir(g_BuildPath)
-    if g_Verbose:
-        print(cmd)
-    p = subprocess.Popen(cmd, shell = True)
-    p.wait()
-    if p.poll():
-        print('Error: Generating ISR C code failed!')
-        os._exit(-1)
-
-
-def compileIsr():
-    cmd = quoteStr(getSdkTool('gcc'))
-
-    includePath = [
-        'hal/HalSwiftIOBoard/zephyr/include',
-        'hal/HalSwiftIOBoard/zephyr/soc/arm/nxp_imx/rt',
-        'hal/HalSwiftIOBoard/zephyr/lib/libc/newlib/include',
-        'hal/HalSwiftIOBoard/zephyr/ext/hal/cmsis/Core/Include',
-        'hal/HalSwiftIOBoard/modules/hal/nxp/mcux/devices/MIMXRT1052',
-        'hal/HalSwiftIOBoard/modules/hal/nxp/mcux/drivers/imx',
-        'hal/HalSwiftIOBoard/generated'
-    ]
-
-    flags = [
-        '-DBOARD_FLASH_SIZE=CONFIG_FLASH_SIZE',
-        '-DBUILD_VERSION=zephyr-v2.2.0',
-        '-DCPU_MIMXRT1052DVL6B',
-        '-DKERNEL',
-        #'-DXIP_BOOT_HEADER_DCD_ENABLE=1',
-        #'-DXIP_BOOT_HEADER_ENABLE=1',
-        '-D_FORTIFY_SOURCE=2',
-        '-D__LINUX_ERRNO_EXTENSIONS__',
-        '-D__PROGRAM_START',
-        '-D__ZEPHYR__=1',
-        '-Os',
-        '-ffreestanding',
-        '-fno-common',
-        '-g',
-        '-mthumb',
-        '-mcpu=cortex-m7',
-        '-mfpu=fpv5-d16',
-        '-mfloat-abi=soft',
-        '-Wall',
-        '-Wformat',
-        '-Wformat-security',
-        '-Wno-format-zero-length',
-        '-Wno-main',
-        '-Wno-pointer-sign',
-        '-Wpointer-arith',
-        '-Wno-unused-but-set-variable',
-        '-Werror=implicit-int',
-        '-fno-asynchronous-unwind-tables',
-        '-fno-pie',
-        '-fno-pic',
-        '-fno-strict-overflow',
-        '-fno-short-enums',
-        '-fno-reorder-functions',
-        '-fno-defer-pop',
-        '-ffunction-sections',
-        '-fdata-sections',
-        '-mabi=aapcs',
-        '-std=c99'
-    ]
-
-    for item in includePath:
-        flags.append('-I' + quoteStr(g_SdkPath / item))
-    
-    flags.append('-isystem ' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/include'))
-    flags.append('-imacros ' + quoteStr(g_SdkPath / 'hal/HalSwiftIOBoard/generated/autoconf.h'))
-    flags.append('-o ' + quoteStr(g_BuildPath / 'isr_tables.c.obj'))
-    flags.append('-c ' + quoteStr(g_BuildPath / 'isr_tables.c'))
-
-    for item in flags:
-        cmd += ' ' + item
-
-    os.chdir(g_BuildPath)
-    if g_Verbose:
-        print(cmd)
-    p = subprocess.Popen(cmd, shell = True)
-    p.wait()
-    if p.poll():
-        print('Error: Compiling ISR C code failed!')
-        os._exit(-1)
 
 
 def generateBin():
@@ -523,11 +388,12 @@ def buildExecutable():
     print('Building executable ' + g_ProjectName + '...')
     compileSwift('exe')
     mergeObjects()
-    linkELF('step1')
-    generateIsr()
-    generateIsrTable()
-    compileIsr()
-    linkELF('step2')
+    #linkELF('step1')
+    #generateIsr()
+    #generateIsrTable()
+    #compileIsr()
+    #linkELF('step2')
+    linkELF()
     generateBin()
     addCrcToBin()
 
