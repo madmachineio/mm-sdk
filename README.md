@@ -1,4 +1,4 @@
-Join our [community](https://discord.gg/zZ9bFHK) to chat : ) Any feedback is welcomed!
+[![alt Discord](https://img.shields.io/discord/592743353049808899 "Discord")](https://madmachine.io/discord)
 
 # MM SDK
 

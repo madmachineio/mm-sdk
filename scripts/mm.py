@@ -271,8 +271,10 @@ def linkELF():
 
     mapTarget = quoteStr(g_BuildPath / (g_ProjectName + '.map'))
     flags.append('-Wl,-Map=' + mapTarget)
+
     linkScript = quoteStr(g_SdkPath / 'boards/SwiftIOBoard/nofp/linker_pass_final.cmd')
     flags.append('-Wl,-T ' + linkScript)
+
     flags.append(quoteStr(g_SdkPath / 'boards/SwiftIOBoard/nofp/lib/isr_tables_global.c.obj'))
     
     flags.append('-L' + quoteStr(g_SdkPath / g_ToolBase / 'toolchains/gcc/arm-none-eabi/lib/thumb/v7e-m/nofp'))
@@ -281,18 +283,20 @@ def linkELF():
     flags.append('-Wl,--whole-archive')
     flags.append(quoteStr(g_SdkPath / g_ToolBase / 'toolchains/swift/lib/swift/zephyr/thumbv7em/swiftrt.o'))
     flags.append(quoteStr(g_BuildPath / ('lib' + g_ProjectName + '.a')))
+    wholeLibraryFiles = sorted((g_SdkPath / 'boards/SwiftIOBoard/nofp/lib/whole').rglob("*.a"))
 
-    librarFiles = sorted((g_SdkPath / 'boards/SwiftIOBoard/nofp/lib/whole').rglob("*.a"))
-    for file in librarFiles:
+    for file in wholeLibraryFiles:
         flags.append(quoteStr(file))
 
     flags.append('-Wl,--no-whole-archive')
-
-    g_SearchPaths.append(g_SdkPath / 'boards/SwiftIOBoard/nofp/lib//nowhole')
-
-    #print(g_SearchPaths)
-
     flags.append('-Wl,--start-group')
+
+    nowholeLibraryFiles = sorted((g_SdkPath / 'boards/SwiftIOBoard/nofp/lib/nowhole').rglob("*.a"))
+    nowholeLibraryFiles += sorted((g_SdkPath / 'boards/SwiftIOBoard/nofp/lib/nowhole').rglob("*.obj"))
+
+    for file in nowholeLibraryFiles:
+        flags.append(quoteStr(file))
+
     for item in reversed(g_SearchPaths):
         files = sorted(item.glob("*.a"))
         for file in files:
