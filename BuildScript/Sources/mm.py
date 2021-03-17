@@ -14,7 +14,6 @@ gSdkPath = ''
 gProjectPath = ''
 gVerbose = False
 
-
 def quoteStr(path):
     return '"%s"' % str(path)
 
@@ -52,12 +51,15 @@ def initProject(args):
         os._exit(-1)
     os._exit(0)
 
-
 def getProjectName():
     ret = sorted(Path('.').glob('*.mmp'))
 
-    if ret == None:
-        print('error: Project file not exists in this directory')
+    if not ret:
+        print('error: MadMachine project file not exists in this directory')
+        os._exit(-1)
+    
+    if len(ret) > 1:
+        print('error: More than one MadMachine project files exist in this directory')
         os._exit(-1)
 
     ret = ret[0].name
@@ -66,24 +68,19 @@ def getProjectName():
     return name
 
 def getSdkTool(tool):
-    toolBase = 'usr/bin'
     value = ''
     if tool == 'swift-build':
-        value = (gSdkPath / toolBase / 'swift-build')
+        value = (gSdkPath / 'usr/bin/swift-build')
     elif tool == 'swift-package':
-        value = (gSdkPath / toolBase / 'swift-package')
-    elif tool == 'ar':
-        value = (gSdkPath / toolBase / 'arm-none-eabi-ar')
+        value = (gSdkPath / 'usr/bin/swift-package')
     elif tool == 'objcopy':
-        value = (gSdkPath / toolBase / 'arm-none-eabi-objcopy')
+        value = (gSdkPath / 'usr/bin/arm-none-eabi-objcopy')
     return value
-
 
 def cleanBin(targetArch):
     files = sorted((gProjectPath / '.build' / targetArch / 'release').glob('*.bin'))
     for file in files:
         file.unlink()
-
 
 def generateBin(projectName, targetArch):
     cmd = quoteStr(getSdkTool('objcopy'))
@@ -114,7 +111,6 @@ def generateBin(projectName, targetArch):
         print('error: Generating binary failed!')
         os._exit(-1)
 
-
 def addCrcToBin(boardName, projectName, targetArch):
     if boardName == 'SwiftIOFeather':
         targetFile = gProjectPath / '.build' / targetArch / 'release/feather.bin'
@@ -132,7 +128,6 @@ def addCrcToBin(boardName, projectName, targetArch):
             byte = struct.pack('B', number)
             file.write(byte)
 
-
 def getCArch(floatType):
     if floatType == 'hard':
         flags = [
@@ -148,7 +143,6 @@ def getCArch(floatType):
             '-mcpu=cortex-m7+nofp',
             '-mfloat-abi=soft'
         ]
-
     return flags
 
 def getCPredefined():
@@ -175,9 +169,7 @@ def getCIncludePath(floatType):
         'usr/lib/gcc/arm-none-eabi-9.3.1/include-fixed',
         'usr/arm-none-eabi/include',
     ]
-
     flags = ['-I' + str(gSdkPath / item) for item in flags]
-
     return flags
 
 def getCFlags(floatType):
@@ -210,10 +202,7 @@ def getSwiftArch(floatType):
             '-float-abi',
             'soft'
         ]
-
     return flags
-
-
 
 def getSwiftPredefined():
     flags = [
@@ -287,7 +276,6 @@ def getLibrarySearchFlags(floatType):
     return flags
 
 
-
 def getBoardLibraryFlags(boardName, floatType):
     if floatType == 'hard':
         subPath = 'eabihf'
@@ -315,9 +303,6 @@ def getBoardLibraryFlags(boardName, floatType):
     flags = combinedFlags.split(' ')
     return flags
 
-
-
-
 def getSwiftcFlags(boardName, floatType):
     flags = []
 
@@ -327,7 +312,6 @@ def getSwiftcFlags(boardName, floatType):
     flags += getLinkerScript(boardName, floatType)
     flags += getLibrarySearchFlags(floatType)
     flags += getBoardLibraryFlags(boardName, floatType)
-
     return flags
 
 def generateDestinationJson(boardName, floatType, targetArch):
@@ -350,7 +334,6 @@ def generateDestinationJson(boardName, floatType, targetArch):
     js = json.dumps(dic, indent = 4)
     return js
 
-
 def buildSwift(destinationFile):
     flags = [
         '-c release',
@@ -370,7 +353,6 @@ def buildSwift(destinationFile):
     p.wait()
     if p.poll():
         os._exit(-1)
-
 
 def buildProject(args):
     boardName = args.board
@@ -392,11 +374,6 @@ def buildProject(args):
     generateBin(projectName, targetArch)
     addCrcToBin(boardName, projectName, targetArch)
 
-
-
-
-
-
 def parseArgs():
     global gProjectPath
     global gSdkPath
@@ -406,27 +383,25 @@ def parseArgs():
     gSdkPath = Path(gSdkPath.parent.parent.parent)
     gProjectPath = Path('.').resolve()
 
-    parser = argparse.ArgumentParser()
-    subparsers = parser.add_subparsers()
+    parentParser = argparse.ArgumentParser()
+    parentParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+
+    subparsers = parentParser.add_subparsers(title='actions')
 
     initParser = subparsers.add_parser('init', help = 'Initiaize a new project. Could be either an executable or a library')
-    initParser.add_argument('--type', type = str, choices = ['executable', 'library'], default = 'executable', help = "Project type, default type is executable")
+    initParser.add_argument('--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
     initParser.add_argument('--name', type = str, help = 'Initiaize the new project with a specified name, otherwise the project name depends on the current directory name')
-    initParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     initParser.set_defaults(func = initProject)
 
     buildParser = subparsers.add_parser('build', help = 'Build a project')
-    buildParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], help = 'Used for linking lower-level board libraries')
-    buildParser.add_argument('-f', '--float', type = str, choices = ['soft', 'hard'], default = 'soft', help = "Use soft float or hard float, default is soft")
-    buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    buildParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], required = True, help = 'Used for linking lower-level board libraries')
+    buildParser.add_argument('-f', '--float', type = str, choices = ['soft', 'hard'], default = 'soft', help = 'Use soft float or hard float, default is soft')
     buildParser.set_defaults(func = buildProject)
 
-    args = parser.parse_args()
+    args = parentParser.parse_args()
     if args.verbose:
         gVerbose = True
-
     args.func(args)
-
 
 if __name__ == '__main__':
     parseArgs()
