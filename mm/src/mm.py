@@ -67,7 +67,6 @@ def initProject(args):
         '--type ' + initType,
         '--name ' + name
     ]
-    generateProjectFile(name, args.type)
     
     cmd = quoteStr(getSdkTool('swift-package')) + ' init'
     for item in initFlags:
@@ -80,6 +79,7 @@ def initProject(args):
     if p.poll():
         os._exit(-1)
     
+    generateProjectFile(name, args.type)
     if initType == 'executable' and (not args.nooverride):
         rewriteManifest(name)
 
@@ -415,12 +415,17 @@ def parseArgs():
     global gSdkPath
     global gVerbose
 
-    gSdkPath = Path(os.path.realpath(__file__))
+    gSdkPath = Path(os.path.realpath(sys.argv[0]))
     gSdkPath = Path(gSdkPath.parent.parent.parent)
     gProjectPath = Path('.').resolve()
 
-    parentParser = argparse.ArgumentParser()
+    #print('gSdkPath')
+    #print(gSdkPath)
 
+    #print('gProjectPath')
+    #print(gProjectPath)
+
+    parentParser = argparse.ArgumentParser()
     subparsers = parentParser.add_subparsers(title='actions')
 
     initParser = subparsers.add_parser('init', help = 'Initiaize a new project')
