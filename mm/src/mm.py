@@ -26,6 +26,36 @@ def generateProjectFile(name, type):
     
     Path('./' + name + '.mmp').touch(exist_ok = True)
 
+def rewriteManifest(_name):
+    content = """// swift-tools-version:5.3
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import PackageDescription
+
+let package = Package(
+    name: "{name}",
+    dependencies: [
+        // Dependencies declare other packages that this package depends on.
+        .package(url: "https://github.com/madmachineio/SwiftIO.git", .branch("main")),
+        .package(url: "https://github.com/madmachineio/MadBoards.git", .branch("main")),
+    ],
+    targets: [
+        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
+        // Targets can depend on other targets in this package, and on products in packages this package depends on.
+        .target(
+            name: "{name}",
+            dependencies: ["SwiftIO", "MadBoards"]),
+        .testTarget(
+            name: "{name}Tests",
+            dependencies: ["{name}"]),
+    ]
+)
+"""
+    content = content.format(name=_name)
+    (gProjectPath / 'Package.swift').write_text(content, encoding='UTF-8')
+
+
+
 def initProject(args):
     initType = args.type
     if args.name:
@@ -49,17 +79,21 @@ def initProject(args):
     p.wait()
     if p.poll():
         os._exit(-1)
+    
+    if initType == 'executable' and (not args.nooverride):
+        rewriteManifest(name)
+
     os._exit(0)
 
 def getProjectName():
     ret = sorted(Path('.').glob('*.mmp'))
 
-    if not ret:
-        print('error: MadMachine project file not exists in this directory')
-        os._exit(-1)
-    
     if len(ret) > 1:
         print('error: More than one MadMachine project files exist in this directory')
+        os._exit(-1)
+
+    if not ret:
+        print('error: MadMachine project file not exists in this directory')
         os._exit(-1)
 
     ret = ret[0].name
@@ -371,8 +405,10 @@ def buildProject(args):
     destinationFile.write_text(js, encoding='UTF-8')
 
     buildSwift(destinationFile)
-    generateBin(projectName, targetArch)
-    addCrcToBin(boardName, projectName, targetArch)
+
+    if (gProjectPath / '.build' / targetArch / 'release' / projectName).exists():
+        generateBin(projectName, targetArch)
+        addCrcToBin(boardName, projectName, targetArch)
 
 def parseArgs():
     global gProjectPath
@@ -384,18 +420,20 @@ def parseArgs():
     gProjectPath = Path('.').resolve()
 
     parentParser = argparse.ArgumentParser()
-    parentParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
 
     subparsers = parentParser.add_subparsers(title='actions')
 
-    initParser = subparsers.add_parser('init', help = 'Initiaize a new project. Could be either an executable or a library')
+    initParser = subparsers.add_parser('init', help = 'Initiaize a new project')
     initParser.add_argument('--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
     initParser.add_argument('--name', type = str, help = 'Initiaize the new project with a specified name, otherwise the project name depends on the current directory name')
+    initParser.add_argument('--nooverride', action = 'store_true', default = False, help = "Don't overwrite the Package.swift file with a common used template")
+    initParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     initParser.set_defaults(func = initProject)
 
     buildParser = subparsers.add_parser('build', help = 'Build a project')
     buildParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], required = True, help = 'Used for linking lower-level board libraries')
-    buildParser.add_argument('-f', '--float', type = str, choices = ['soft', 'hard'], default = 'soft', help = 'Use soft float or hard float, default is soft')
+    buildParser.add_argument('-f', '--float', type = str, choices = ['soft', 'hard'], default = 'soft', help = 'Use soft or hard floating-point, default is soft')
+    buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
 
     args = parentParser.parse_args()
