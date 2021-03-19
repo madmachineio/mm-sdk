@@ -1,4 +1,3 @@
-  
 #!/usr/bin/python3
 # -*- coding: UTF-8 -*-
 
@@ -199,8 +198,8 @@ def getCIncludePath(floatType):
         'usr/arm-none-eabi/include/c++/9.3.1',
         'usr/arm-none-eabi/include/c++/9.3.1/arm-none-eabi/thumb' + subPath,
         'usr/arm-none-eabi/include/c++/9.3.1/backward',
-        'usr/lib/gcc/arm-none-eabi-9.3.1/include',
-        'usr/lib/gcc/arm-none-eabi-9.3.1/include-fixed',
+        'usr/lib/gcc/arm-none-eabi/9.3.1/include',
+        'usr/lib/gcc/arm-none-eabi/9.3.1/include-fixed',
         'usr/arm-none-eabi/include',
     ]
     flags = ['-I' + str(gSdkPath / item) for item in flags]
