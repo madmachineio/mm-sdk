@@ -25,6 +25,55 @@ The latest features would be added to this SDK first and then integrated into th
 
 # Usage (Take macOS and Linux for example)
 
+## Install required dependencies:
+
+### macOS
+
+Install XCode and open it so it could install any components that needed.
+
+### Ubuntu 18.04
+
+```bash
+sudo apt-get install \
+          binutils \
+          git \
+          libc6-dev \
+          libcurl4 \
+          libedit2 \
+          libgcc-5-dev \
+          libpython2.7 \
+          libsqlite3-0 \
+          libstdc++-5-dev \
+          libxml2 \
+          pkg-config \
+          tzdata \
+          zlib1g-dev
+```
+
+
+### Ubuntu 20.04
+
+```bash
+sudo apt-get install \
+          binutils \
+          git \
+          gnupg2 \
+          libc6-dev \
+          libcurl4 \
+          libedit2 \
+          libgcc-9-dev \
+          libpython2.7 \
+          libsqlite3-0 \
+          libstdc++-9-dev \
+          libxml2 \
+          libz3-dev \
+          pkg-config \
+          tzdata \
+          zlib1g-dev \
+          libncurses5
+```
+## Download the mm-sdk
+
 Download and unzip the sdk to the directory `~`
 
 `~/mm-sdk/usr/mm/mm -h` command for quick help.
@@ -32,15 +81,6 @@ Download and unzip the sdk to the directory `~`
 `~/mm-sdk/usr/mm/mm init -h` command for quick help about initializing a project.
 
 `~/mm-sdk/usr/mm build -h` command for quick help about building a project.
-
-## Initialize a library `DemoLibrary` in `~/Documents`
-
-```shell
-cd ~/Documents
-mkdir DemoLibrary
-cd DemoLibrary
-~/mm-sdk/usr/mm/mm init --type library
-```
 
 ## Initialize an executable `DemoProgram` in `~/Documents`
 
@@ -50,11 +90,7 @@ mkdir DemoProgram
 cd DemoProgram
 ~/mm-sdk/usr/mm/mm init
 ```
-## Add the local `DemoLibrary` as a dependency to `DemoProgram`
-
-1. Open the `Package.swift` in `DemoProgram` directory by any text editor
-2. Add `.package(path: "../DemoLibrary"),` in the `dependencies`
-3. Add `"DemoLibrary"` to the target dependencies, the full code looks like below
+The `Package.swift` should look like below
 ```swift
 // swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
@@ -67,29 +103,18 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
         .package(url: "https://github.com/madmachineio/SwiftIO.git", .branch("main")),
         .package(url: "https://github.com/madmachineio/MadBoards.git", .branch("main")),
-        .package(path: "../DemoLibrary"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "DemoProgram",
-            dependencies: ["SwiftIO", "MadBoards", "DemoLibrary"]),
+            dependencies: ["SwiftIO", "MadBoards"]),
         .testTarget(
             name: "DemoProgramTests",
             dependencies: ["DemoProgram"]),
     ]
 )
-```
-4. Save and quit
-5. Then you can `import DemoLibrary` in the source code
-
-
-## Build a library
-
-```shell
-cd ~/Documents/DemoLibrary
-~/mm-sdk/usr/mm/mm build -b SwiftIOBoard
 ```
 
 ## Build an executable
@@ -125,15 +150,6 @@ Press `Win + R` keys on your keyboard, then type `cmd`, and press Enter on your 
 
 `D:\mm-sdk\usr\mm build -h` command for quick help about building a project.
 
-## Initialize a library `DemoLibrary` in `D:\`
-
-```shell
-D:
-mkdir DemoLibrary
-cd DemoLibrary
-D:\mm-sdk\usr\mm\mm init --type library
-```
-
 ## Initialize an executable `DemoProgram` in `D:\`
 
 ```shell
@@ -142,11 +158,9 @@ mkdir DemoProgram
 cd DemoProgram
 D:\mm-sdk\usr\mm\mm init
 ```
-## Add the local `DemoLibrary` as a dependency to `DemoProgram`
 
-1. Open the `Package.swift` in `DemoProgram` directory by any text editor
-2. Add `.package(path: "../DemoLibrary"),` in the `dependencies`
-3. Add `"DemoLibrary"` to the target dependencies, the full code looks like below
+The `Package.swift` should look like below
+
 ```swift
 // swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
@@ -159,29 +173,18 @@ let package = Package(
         // Dependencies declare other packages that this package depends on.
         .package(url: "https://github.com/madmachineio/SwiftIO.git", .branch("main")),
         .package(url: "https://github.com/madmachineio/MadBoards.git", .branch("main")),
-        .package(path: "../DemoLibrary"),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "DemoProgram",
-            dependencies: ["SwiftIO", "MadBoards", "DemoLibrary"]),
+            dependencies: ["SwiftIO", "MadBoards"]),
         .testTarget(
             name: "DemoProgramTests",
             dependencies: ["DemoProgram"]),
     ]
 )
-```
-4. Save and quit
-5. Then you can `import DemoLibrary` in the source code
-
-
-## Build a library
-
-```shell
-cd D:\DemoLibrary
-D:\mm-sdk\usr\mm\mm build -b SwiftIOBoard
 ```
 
 ## Build an executable
@@ -198,7 +201,7 @@ After a successful building, there would be `.build\release\swiftio.bin` in your
 Follow those steps to download the executable:
 
 1. Insert SD card to the board and connect the it to your computer through an USB cable
-2. Press the **Download** button and wait the onboard RGB LED turns to static **green**)
+2. Press the **Download** button and wait the onboard RGB LED turns to static **green**
 2. A USB disk drive should be mounted on your computer
 3. Copy the `swiftio.bin` to the SD card root directory
 4. Eject the USB drive and the program would run automatically
