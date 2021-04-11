@@ -124,6 +124,8 @@ cd ~/Documents/DemoProgram
 ~/mm-sdk/usr/mm/mm build -b SwiftIOBoard
 ```
 
+
+
 ## Download an executable to the board
 
 After a successful building, there would be `.build/release/swiftio.bin` in your project directory. Note that the `.build` directory is hiden by default.
@@ -135,6 +137,17 @@ Follow those steps to download the executable:
 2. A USB disk drive should be mounted on your computer
 3. Copy the `swiftio.bin` to the SD card root directory
 4. Eject the USB drive and the program would run automatically
+
+## Download an executable to the board using command(Only on macOS now)
+
+After mounting the SD card:
+
+```shell
+cd ~/Documents/DemoProgram
+~/mm-sdk/usr/mm/mm download -b SwiftIOBoard
+```
+
+This command would find the correspond bin file, copy it to the SD card and eject the SD card automatically
 
 ------
 
