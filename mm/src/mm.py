@@ -673,8 +673,8 @@ def parseArgs():
     initParser.set_defaults(func = initProject)
 
     buildParser = subparsers.add_parser('build', help = 'Build a project')
-    buildParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], required=True, help = 'Used for linking lower-level board libraries')
-    buildParser.add_argument('-f', '--float', type = str, choices = ['soft', 'hard'], required=True, default='soft', help = 'Use soft or hard floating-point, default is soft')
+    buildParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], required = True, help = 'Used for linking lower-level board libraries')
+    buildParser.add_argument('-f', '--float', type = str, choices = ['soft', 'hard'], default = 'soft', help = 'Use soft or hard floating-point, default is soft')
     buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
 
@@ -684,7 +684,7 @@ def parseArgs():
     downloadParser.set_defaults(func = downloadProject)
 
     configParser = subparsers.add_parser('config', help = 'Control the project with MadMachine project file')
-    configParser.add_argument('-a', '--action', type = str, choices =['generate', 'build', 'download'], required=True, help = 'Use MadMachine Project File to take actions')
+    configParser.add_argument('-a', '--action', type = str, choices =['generate', 'build', 'download'], required = True, help = 'Use MadMachine Project File to take actions')
     configParser.set_defaults(func = config)
 
     args = parentParser.parse_args()
