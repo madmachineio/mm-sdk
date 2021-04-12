@@ -1,5 +1,6 @@
 [![alt Discord](https://img.shields.io/discord/592743353049808899 "Discord")](https://madmachine.io/discord)
 
+
 # MM SDK
 
 The mm-sdk contains eveything you need to build a MadMachine project, either a library or an executable.
