@@ -2,31 +2,93 @@
 # -*- coding: UTF-8 -*-
 
 import os, sys
+import platform
 import argparse
+import toml
 import json
 import subprocess
+import shutil
 from pathlib import Path
 import struct
 from zlib import crc32
 
 gSdkPath = ''
 gProjectPath = ''
+gSystem = ''
 gVerbose = False
+
+def getBoardInfo(boardName, info):
+    boardDict = {'vid': '0x1fc9',
+                'pid': '0x0093',
+                'serialNumber': '0123456789ABCDEF',
+                'binFileName': 'swiftio.bin'}
+    featherDict = {'vid': '0x1fc9',
+                'pid': '0x0095',
+                'serialNumber': '012345671FC90095',
+                'binFileName': 'feather.bin'}
+
+    if boardName == 'SwiftIOBoard':
+        dic = boardDict
+    else:
+        dic = featherDict
+    
+    return dic.get(info)
 
 def quoteStr(path):
     return '"%s"' % str(path)
 
-def generateProjectFile(name, type):
-    ret = sorted(Path('.').glob('*.mmp'))
+def generateProjectFile(boardName=None, floatType=None):
+    projectName = getProjectInfo('name')
 
-    if ret:
-        print('error: Project file ' + ret[0].name + ' already exists in this directory')
+    if boardName is None or floatType is None:
+        print('error: Please specify --board and --float when generating MadMachine Project file')
         os._exit(-1)
     
-    Path('./' + name + '.mmp').touch(exist_ok = True)
+    content = """# This is a MadMachine project file in TOML format
+# This file holds those parameters that could not be managed by SwiftPM
+# Edit this file would change the behavior of the building/downloading procedure
+# Those project files in the dependent libraries would be IGNORED
 
-def rewriteManifest(_name):
-    content = """// swift-tools-version:5.3
+# Specify the board name below, there are "SwiftIOBoard" and "SwiftIOFeather" now
+board = "{name}"
+
+# Specifiy the floating-point type below, there are "soft" and "hard"
+# If your code use significant floating-point calculation, plz set it to "hard"
+float-type = "{float}"
+
+# Reserved for future use 
+version = 1
+"""
+    content = content.format(name=boardName, float=floatType)
+    (gProjectPath / (projectName + '.mmp')).write_text(content, encoding='UTF-8')
+
+def rewriteManifest(initType, projectName):
+    if initType == 'library': 
+        content = """// swift-tools-version:5.3
+// The swift-tools-version declares the minimum version of Swift required to build this package.
+
+import PackageDescription
+
+let package = Package(
+    name: "{name}",
+    dependencies: [
+        // Dependencies declare other packages that this package depends on.
+        .package(url: "https://github.com/madmachineio/SwiftIO.git", .branch("main")),
+    ],
+    targets: [
+        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
+        // Targets can depend on other targets in this package, and on products in packages this package depends on.
+        .target(
+            name: "{name}",
+            dependencies: ["SwiftIO"]),
+        .testTarget(
+            name: "{name}Tests",
+            dependencies: ["{name}"]),
+    ]
+)
+"""
+    else:
+        content = """// swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -49,19 +111,24 @@ let package = Package(
             dependencies: ["{name}"]),
     ]
 )
-"""
-    content = content.format(name=_name)
+"""     
+
+    content = content.format(name=projectName)
     (gProjectPath / 'Package.swift').write_text(content, encoding='UTF-8')
 
 
 
 def initProject(args):
+    global gVerbose
+    if args.verbose:
+        gVerbose = True
+
     initType = args.type
     if args.name:
         name = args.name
     else:
         name = Path('.').resolve().name
-
+    print('init name' + name)
     initFlags = [
         '--type ' + initType,
         '--name ' + name
@@ -78,27 +145,40 @@ def initProject(args):
     if p.poll():
         os._exit(-1)
     
-    generateProjectFile(name, args.type)
-    if initType == 'executable' and (not args.nooverride):
-        rewriteManifest(name)
-
+    if not args.nooverride:
+        rewriteManifest(initType, name)
+    
     os._exit(0)
 
-def getProjectName():
-    ret = sorted(Path('.').glob('*.mmp'))
+def getProjectInfo(info):
+    cmd = quoteStr(getSdkTool('swift-package'))
 
-    if len(ret) > 1:
-        print('error: More than one MadMachine project files exist in this directory')
+    flags = [
+        'describe --type json'
+    ]
+
+    for item in flags:
+        cmd += ' ' + item
+
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p.wait()
+    if p.poll():
         os._exit(-1)
+    cmdOut, cmdErr = p.communicate()
+    jsonData = cmdOut.decode('utf-8')
+    projectName = json.loads(jsonData).get('name')
+    targets = json.loads(jsonData).get('targets')
 
-    if not ret:
-        print('error: MadMachine project file not exists in this directory')
-        os._exit(-1)
+    for target in targets:
+        if target.get('name') == projectName:
+            projectType = target.get('type')
+            break
 
-    ret = ret[0].name
-    name = ret.split('.')[0]
+    if info == 'name':
+        return projectName
+    elif info == 'type':
+        return projectType
 
-    return name
 
 def getSdkTool(tool):
     value = ''
@@ -108,12 +188,31 @@ def getSdkTool(tool):
         value = (gSdkPath / 'usr/bin/swift-package')
     elif tool == 'objcopy':
         value = (gSdkPath / 'usr/bin/arm-none-eabi-objcopy')
+    elif tool == 'mm':
+        value = (gSdkPath / 'usr/mm/mm')
+
+    if not value.exists():
+        print('error: Cannot find ' + str(value))
+        os._exit(-1)
     return value
 
-def cleanBin(targetArch):
+def cleanProject(targetArch, deepClean):
     files = sorted((gProjectPath / '.build' / targetArch / 'release').glob('*.bin'))
     for file in files:
         file.unlink()
+
+    if deepClean:
+        cmd = quoteStr(getSdkTool('swift-package'))
+
+        flags = [
+            'clean'
+        ]
+
+        for item in flags:
+            cmd += ' ' + item
+
+        p = subprocess.Popen(cmd, shell = True)
+        p.wait()
 
 def generateBin(projectName, targetArch):
     cmd = quoteStr(getSdkTool('objcopy'))
@@ -146,9 +245,9 @@ def generateBin(projectName, targetArch):
 
 def addCrcToBin(boardName, projectName, targetArch):
     if boardName == 'SwiftIOFeather':
-        targetFile = gProjectPath / '.build' / targetArch / 'release/feather.bin'
+        targetFile = gProjectPath / '.build' / targetArch / 'release' / getBoardInfo(boardName, 'binFileName')
     elif boardName == 'SwiftIOBoard':
-        targetFile = gProjectPath / '.build' / targetArch / 'release/swiftio.bin'
+        targetFile = gProjectPath / '.build' / targetArch / 'release' / getBoardInfo(boardName, 'binFileName')
 
     data = (gProjectPath / '.build/release' / (projectName + '.bin')).read_bytes()
     value = crc32(data)
@@ -388,15 +487,20 @@ def buildSwift(destinationFile):
         os._exit(-1)
 
 def buildProject(args):
+    global gVerbose
+    if args.verbose:
+        gVerbose = True
+
+    projectName = getProjectInfo('name')
+
     boardName = args.board
     floatType = args.float
     if floatType == 'hard':
         targetArch = 'thumbv7em-unknown-none-eabihf'
     else:
         targetArch = 'thumbv7em-unknown-none-eabi'
-    projectName = getProjectName()
 
-    cleanBin(targetArch)
+    cleanProject(targetArch, False)
 
     js = generateDestinationJson(boardName, floatType, targetArch)
     (gProjectPath / '.build').mkdir(exist_ok=True)
@@ -409,23 +513,157 @@ def buildProject(args):
         generateBin(projectName, targetArch)
         addCrcToBin(boardName, projectName, targetArch)
 
+def darwinGetMountPoint(vid, pid):
+    mp = None
+
+    cmd = 'system_profiler -json SPUSBDataType'
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p.wait()
+    if p.poll():
+        os._exit(-1)
+    cmdOut, cmdErr = p.communicate()
+    jsonData = cmdOut.decode('utf-8')
+    usbDataList = json.loads(jsonData).get('SPUSBDataType')
+    if usbDataList == None:
+        return mp
+
+    for dataDic in usbDataList:
+        itemsList = dataDic.get('_items')
+        if itemsList:
+            for itemDic in itemsList:
+                venderId = itemDic.get('vendor_id')
+                productId = itemDic.get('product_id')
+                if venderId and productId:
+                    venderId = venderId.lower()
+                    productId = productId.lower()
+                    if venderId.startswith(vid) and productId.startswith(pid):
+                        mp = itemDic.get('Media')[0].get('volumes')[0].get('mount_point')
+    
+    return mp
+
+def darwinDownload(boardName):
+    vid = getBoardInfo(boardName, 'vid')
+    pid = getBoardInfo(boardName, 'pid')
+    #serialNumber = getBoardInfo(boardName, 'serialNumber')
+    fileName = getBoardInfo(boardName, 'binFileName')
+    
+    source = gProjectPath / '.build' / 'release' / fileName
+    if not source.exists():
+        print('error: Cannot find the target file, please build project first')
+        os._exit(-1)
+
+    mountPath = darwinGetMountPoint(vid, pid)
+    if not mountPath:
+        print('error: Cannot find ' +  boardName + ', please make sure it is plugged in and corectlly mounted')
+        os._exit(-1)
+    
+    target = Path(mountPath) / fileName
+    shutil.copy(source, target)
+    
+    cmd = 'diskutil eject ' + quoteStr(mountPath)
+    p = subprocess.Popen(cmd, shell=True)
+    p.wait()
+    if p.poll():
+        os._exit(-1)
+
+def downloadProject(args):
+    global gVerbose
+    if args.verbose:
+        gVerbose = True
+
+    boardName = args.board
+
+    if gSystem != 'Darwin':
+        print("Windows and Linux is not supported currently, please download the bin file manually")
+        os._exit(-1)
+    else:
+        darwinDownload(boardName)
+
+
+def config(args):
+    acctionType = args.action
+    projectName = getProjectInfo('name')
+    projectType = getProjectInfo('type')
+
+    if acctionType == 'generate':
+        boardName = 'SwiftIOFeather'
+        floatType = 'soft'
+        generateProjectFile(boardName, floatType)
+        
+        os._exit(0)
+
+    if acctionType == 'build':
+        projectFile = gProjectPath / (projectName + '.mmp')
+        if not projectFile.exists():
+            print('error: Cannot find MadMachine project file: ' + str(configFile))
+            os._exit(-1)
+        tomlString = projectFile.read_text()
+        try:
+            tomlDic = toml.loads(tomlString)
+        except:
+            print('error: Project file ' + projectFile + ' decoding failed')
+            os._exit(-1)
+
+        boardName = tomlDic['board']
+        floatType = tomlDic['float-type']
+        flags = [
+            '--board ' + boardName,
+            '--float ' + floatType,
+        ]
+
+        cmd = quoteStr(getSdkTool('mm')) + ' build'
+        for item in flags:
+            cmd += ' ' + item
+
+        p = subprocess.Popen(cmd, shell = True)
+        p.wait()
+        if p.poll():
+            os._exit(-1)
+        os._exit(0)
+    
+    if acctionType == 'download':
+        if projectType == 'library':
+            print('error: Cannot download a library')
+            os._exit(-1)
+
+        projectFile = gProjectPath / (projectName + '.mmp')
+        if not projectFile.exists():
+            print('error: Cannot find MadMachine project file: ' + str(configFile))
+            os._exit(-1)
+        tomlString = projectFile.read_text()
+        try:
+            tomlDic = toml.loads(tomlString)
+        except:
+            print('error: Project file ' + projectFile + ' decoding failed')
+            os._exit(-1)
+
+        boardName = tomlDic['board']
+        flags = [
+            '--board ' + boardName,
+        ]
+        cmd = quoteStr(getSdkTool('mm')) + ' download'
+        for item in flags:
+            cmd += ' ' + item
+        p = subprocess.Popen(cmd, shell = True)
+        p.wait()
+        if p.poll():
+            os._exit(-1)
+        os._exit(0)
+
+
 def parseArgs():
     global gProjectPath
     global gSdkPath
-    global gVerbose
+    global gSystem
 
     gSdkPath = Path(os.path.realpath(sys.argv[0]))
     gSdkPath = Path(gSdkPath.parent.parent.parent)
     gProjectPath = Path('.').resolve()
-
-    #print('gSdkPath')
-    #print(gSdkPath)
-
-    #print('gProjectPath')
-    #print(gProjectPath)
+    gSystem = platform.system()
 
     parentParser = argparse.ArgumentParser()
     subparsers = parentParser.add_subparsers(title='actions')
+
 
     initParser = subparsers.add_parser('init', help = 'Initiaize a new project')
     initParser.add_argument('--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
@@ -440,9 +678,20 @@ def parseArgs():
     buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
 
+    downloadParser = subparsers.add_parser('download', help = 'Download a compiled executable to the board\'s SD card')
+    downloadParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], required = True, help = 'Used for linking lower-level board libraries')
+    downloadParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    downloadParser.set_defaults(func = downloadProject)
+
+    configParser = subparsers.add_parser('config', help = 'Control the project with MadMachine project file')
+    configParser.add_argument('-a', '--action', type = str, choices =['generate', 'build', 'download'], required = True, help = 'Use MadMachine Project File to take actions')
+    configParser.set_defaults(func = config)
+
     args = parentParser.parse_args()
-    if args.verbose:
-        gVerbose = True
+    d = vars(args)
+    if d.get('func') is None:
+        print('use \'mm --help\' to get more information')
+        os._exit(-1)
     args.func(args)
 
 if __name__ == '__main__':
