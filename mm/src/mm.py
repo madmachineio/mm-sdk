@@ -167,17 +167,21 @@ def getProjectInfo(info):
     cmdOut, cmdErr = p.communicate()
     jsonData = cmdOut.decode('utf-8')
     projectName = json.loads(jsonData).get('name')
-    targets = json.loads(jsonData).get('targets')
-
-    for target in targets:
-        if target.get('name') == projectName:
-            projectType = target.get('type')
-            break
-
     if info == 'name':
         return projectName
-    elif info == 'type':
-        return projectType
+
+    products = json.loads(jsonData).get('products')
+
+    for product in products:
+        if product.get('name') == projectName:
+            productType = product.get('type')
+            if productType.get('executable') is not None:
+                projectType = 'executable'
+            elif productType.get('library') is not None:
+                projectType = 'library'
+            break
+
+    return projectType
 
 
 def getSdkTool(tool):
