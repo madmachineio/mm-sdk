@@ -71,6 +71,12 @@ import PackageDescription
 
 let package = Package(
     name: "{name}",
+    products: [
+        // Products define the executables and libraries a package produces, and make them visible to other packages.
+        .library(
+            name: "{name}",
+            targets: ["{name}"]),
+    ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         .package(url: "https://github.com/madmachineio/SwiftIO.git", .branch("main")),
@@ -106,7 +112,10 @@ let package = Package(
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "{name}",
-            dependencies: ["SwiftIO", "MadBoards", "MadDrivers"]),
+            dependencies: [
+                "SwiftIO",
+                "MadBoards",
+                "MadDrivers"]),
         .testTarget(
             name: "{name}Tests",
             dependencies: ["{name}"]),
@@ -129,7 +138,6 @@ def initProject(args):
         name = args.name
     else:
         name = Path('.').resolve().name
-    print('init name' + name)
     initFlags = [
         '--type ' + initType,
         '--name ' + name
@@ -590,7 +598,7 @@ def downloadProject(args):
     boardName = args.board
 
     if gSystem != 'Darwin':
-        print("Windows and Linux is not supported currently, please download the bin file manually")
+        print("error: Windows and Linux is not supported currently, please download the bin file manually")
         os._exit(-1)
     else:
         darwinDownload(boardName)
