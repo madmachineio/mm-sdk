@@ -439,12 +439,12 @@ def getBoardLibraryFlags(boardName, floatType):
         subPath = 'eabi'
 
     libraries = ['--whole-archive']
-    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'whole').glob('*.obj'))
-    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'whole').glob('*.a'))
-    libraries.append('--no-whole-archive')
+    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'whole').glob('[a-z]*.obj'))
+    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'whole').glob('[a-z]*.a'))
 
-    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'nowhole').glob('*.obj'))
-    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'nowhole').glob('*.a'))
+    libraries.append('--no-whole-archive')
+    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'nowhole').glob('[a-z]*.obj'))
+    libraries += sorted((gSdkPath / 'Boards' / boardName / 'lib/thumbv7em' / subPath / 'nowhole').glob('[a-z]*.a'))
 
     flags = ['-Xlinker ' + str(item) for item in libraries]
     flags += [
