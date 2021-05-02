@@ -15,6 +15,7 @@ from zlib import crc32
 gSdkPath = ''
 gProjectPath = ''
 gSystem = ''
+gMountPath = None
 gVerbose = False
 
 def getBoardInfo(boardName, info):
@@ -537,8 +538,33 @@ def buildProject(args):
         generateBin(projectName, targetArch)
         addCrcToBin(boardName, projectName, targetArch)
 
+def darwinRecursiveParsing(data, vid, pid):
+    global gMountPath
+
+    if gMountPath is not None:
+        return
+
+    if isinstance(data, list):
+        for list_item in data:
+            darwinRecursiveParsing(list_item, vid, pid)
+    elif isinstance(data, dict):
+        venderId = data.get('vendor_id')
+        productId = data.get('product_id')
+        if venderId is not None and productId is not None:
+            venderId = venderId.lower()
+            productId = productId.lower()
+            if venderId.startswith(vid) and productId.startswith(pid):
+                gMountPath = data.get('Media')[0].get('volumes')[0].get('mount_point')
+                return
+        for key, value in data.items():
+            if isinstance(value, dict):
+                darwinRecursiveParsing(value, vid, pid)
+            elif isinstance(value, list):
+                for list_item in value:
+                    darwinRecursiveParsing(list_item, vid, pid)
+
 def darwinGetMountPoint(vid, pid):
-    mp = None
+    global gMountPath
 
     cmd = 'system_profiler -json SPUSBDataType'
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -547,23 +573,9 @@ def darwinGetMountPoint(vid, pid):
         os._exit(-1)
     cmdOut, cmdErr = p.communicate()
     jsonData = cmdOut.decode('utf-8')
-    usbDataList = json.loads(jsonData).get('SPUSBDataType')
-    if usbDataList == None:
-        return mp
 
-    for dataDic in usbDataList:
-        itemsList = dataDic.get('_items')
-        if itemsList:
-            for itemDic in itemsList:
-                venderId = itemDic.get('vendor_id')
-                productId = itemDic.get('product_id')
-                if venderId and productId:
-                    venderId = venderId.lower()
-                    productId = productId.lower()
-                    if venderId.startswith(vid) and productId.startswith(pid):
-                        mp = itemDic.get('Media')[0].get('volumes')[0].get('mount_point')
-    
-    return mp
+    gMountPath = None
+    darwinRecursiveParsing(json.loads(jsonData), vid, pid)
 
 def darwinDownload(boardName):
     vid = getBoardInfo(boardName, 'vid')
@@ -576,15 +588,15 @@ def darwinDownload(boardName):
         print('error: Cannot find the target file, please build project first')
         os._exit(-1)
 
-    mountPath = darwinGetMountPoint(vid, pid)
-    if not mountPath:
+    darwinGetMountPoint(vid, pid)
+    if not gMountPath:
         print('error: Cannot find ' +  boardName + ', please make sure it is plugged in and corectlly mounted')
         os._exit(-1)
     
-    target = Path(mountPath) / fileName
+    target = Path(gMountPath) / fileName
     shutil.copy(source, target)
     
-    cmd = 'diskutil eject ' + quoteStr(mountPath)
+    cmd = 'diskutil eject ' + quoteStr(gMountPath)
     p = subprocess.Popen(cmd, shell=True)
     p.wait()
     if p.poll():
