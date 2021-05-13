@@ -21,7 +21,7 @@ gVerbose = False
 def getBoardInfo(boardName, info):
     boardDict = {'vid': '0x1fc9',
                 'pid': '0x0093',
-                'serialNumber': '0123456789ABCDEF',
+                'serialNumber': '012345671FC90093',
                 'binFileName': 'swiftio.bin'}
     featherDict = {'vid': '0x1fc9',
                 'pid': '0x0095',
@@ -39,7 +39,7 @@ def quoteStr(path):
     return '"%s"' % str(path)
 
 def generateProjectFile(boardName=None, floatType=None):
-    projectName = getProjectInfo('name')
+    #projectName = getProjectInfo('name')
 
     if boardName is None or floatType is None:
         print('error: Please specify --board and --float when generating MadMachine Project file')
@@ -61,7 +61,7 @@ float-type = "{float}"
 version = 1
 """
     content = content.format(name=boardName, float=floatType)
-    (gProjectPath / (projectName + '.mmp')).write_text(content, encoding='UTF-8')
+    (gProjectPath / 'Package.mmp').write_text(content, encoding='UTF-8')
 
 def rewriteManifest(initType, projectName):
     if initType == 'library': 
@@ -158,6 +158,9 @@ def initProject(args):
     if not args.nooverride:
         rewriteManifest(initType, name)
     
+    if args.board:
+        generateProjectFile(args.board, 'soft')
+
     os._exit(0)
 
 def getProjectInfo(info):
@@ -516,7 +519,6 @@ def buildProject(args):
     if args.verbose:
         gVerbose = True
 
-    projectName = getProjectInfo('name')
 
     boardName = args.board
     floatType = args.float
@@ -525,6 +527,7 @@ def buildProject(args):
     else:
         targetArch = 'thumbv7em-unknown-none-eabi'
 
+    projectName = getProjectInfo('name')
     cleanProject(targetArch, False)
 
     js = generateDestinationJson(boardName, floatType, targetArch)
@@ -563,8 +566,12 @@ def darwinRecursiveParsing(data, vid, pid):
                 for list_item in value:
                     darwinRecursiveParsing(list_item, vid, pid)
 
-def darwinGetMountPoint(vid, pid):
+def darwinGetMountPoint(boardName):
     global gMountPath
+
+    vid = getBoardInfo(boardName, 'vid')
+    pid = getBoardInfo(boardName, 'pid')
+    #serialNumber = getBoardInfo(boardName, 'serialNumber')
 
     cmd = 'system_profiler -json SPUSBDataType'
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -578,9 +585,6 @@ def darwinGetMountPoint(vid, pid):
     darwinRecursiveParsing(json.loads(jsonData), vid, pid)
 
 def darwinDownload(boardName):
-    vid = getBoardInfo(boardName, 'vid')
-    pid = getBoardInfo(boardName, 'pid')
-    #serialNumber = getBoardInfo(boardName, 'serialNumber')
     fileName = getBoardInfo(boardName, 'binFileName')
     
     source = gProjectPath / '.build' / 'release' / fileName
@@ -588,7 +592,7 @@ def darwinDownload(boardName):
         print('error: Cannot find the target file, please build project first')
         os._exit(-1)
 
-    darwinGetMountPoint(vid, pid)
+    darwinGetMountPoint(boardName)
     if not gMountPath:
         print('error: Cannot find ' +  boardName + ', please make sure it is plugged in and corectlly mounted')
         os._exit(-1)
@@ -616,32 +620,77 @@ def downloadProject(args):
         darwinDownload(boardName)
 
 
-def config(args):
+def runAction(args):
     acctionType = args.action
-    projectName = getProjectInfo('name')
-    projectType = getProjectInfo('type')
 
     if acctionType == 'generate':
-        boardName = 'SwiftIOFeather'
+        if not args.board:
+            print('error: Board name is needed to generate the project file')
+            os._exit(-1)
+        boardName = args.board
         floatType = 'soft'
         generateProjectFile(boardName, floatType)
-        
+
         os._exit(0)
 
-    if acctionType == 'build':
-        projectFile = gProjectPath / (projectName + '.mmp')
+    if acctionType == 'get-status':
+        projectFile = gProjectPath / 'Package.mmp'
         if not projectFile.exists():
-            print('error: Cannot find MadMachine project file: ' + str(configFile))
+            print('error: Cannot find MadMachine project file')
+            os._exit(0)
+        tomlString = projectFile.read_text()
+        try:
+            tomlDic = toml.loads(tomlString)
+        except:
+            print('error: Project file decoding failed')
+            os._exit(0)
+
+        boardName = tomlDic.get('board')
+        if boardName is None:
+            print('error: Cannot find board name in project file')
+            os._exit(0)
+
+        if gSystem != 'Darwin':
+            print('Board detecting on ' + gSystem + ' is not supported currently, please copy the bin file manually')
+            os._exit(0)
+
+        darwinGetMountPoint(boardName)
+
+        if gMountPath is None:
+            print(boardName + ' is not connected')
+        else:
+            print(boardName + ' ready')
+        os._exit(0)
+
+
+
+    projectName = getProjectInfo('name')
+
+    if acctionType == 'get-name':
+        print(projectName)
+        os._exit(0)
+
+
+    if acctionType == 'build':
+        if args.board:
+            print('warning: Board name is defined in project file already!')
+        projectFile = gProjectPath / 'Package.mmp'
+        if not projectFile.exists():
+            print('error: Cannot find MadMachine project file')
             os._exit(-1)
         tomlString = projectFile.read_text()
         try:
             tomlDic = toml.loads(tomlString)
         except:
-            print('error: Project file ' + projectFile + ' decoding failed')
+            print('error: Project file decoding failed')
             os._exit(-1)
 
-        boardName = tomlDic['board']
-        floatType = tomlDic['float-type']
+        boardName = tomlDic.get('board')
+        floatType = tomlDic.get('float-type')
+        if boardName is None or floatType is None:
+            print('error: Project file error')
+            os._exit(-1)
+
         flags = [
             '--board ' + boardName,
             '--float ' + floatType,
@@ -657,23 +706,30 @@ def config(args):
             os._exit(-1)
         os._exit(0)
     
+    projectType = getProjectInfo('type')
     if acctionType == 'download':
         if projectType == 'library':
             print('error: Cannot download a library')
             os._exit(-1)
 
-        projectFile = gProjectPath / (projectName + '.mmp')
+        if args.board:
+            print('warning: Board name is defined in project file already!')
+        projectFile = gProjectPath / 'Package.mmp'
         if not projectFile.exists():
-            print('error: Cannot find MadMachine project file: ' + str(configFile))
+            print('error: Cannot find MadMachine project file')
             os._exit(-1)
         tomlString = projectFile.read_text()
         try:
             tomlDic = toml.loads(tomlString)
         except:
-            print('error: Project file ' + projectFile + ' decoding failed')
+            print('error: Project file decoding failed')
             os._exit(-1)
 
-        boardName = tomlDic['board']
+        boardName = tomlDic.get('board')
+        if boardName is None:
+            print('error: Project file error')
+            os._exit(-1)
+
         flags = [
             '--board ' + boardName,
         ]
@@ -704,24 +760,26 @@ def parseArgs():
     initParser = subparsers.add_parser('init', help = 'Initiaize a new project')
     initParser.add_argument('--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
     initParser.add_argument('--name', type = str, help = 'Initiaize the new project with a specified name, otherwise the project name depends on the current directory name')
-    initParser.add_argument('--nooverride', action = 'store_true', default = False, help = "Don't overwrite the Package.swift file with a common used template")
+    initParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], help = 'Generate MadMachine project file by passing this parameter')
     initParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    initParser.add_argument('--nooverride', action = 'store_true', default = False, help = "Don't overwrite the Package.swift file with a common used template")
     initParser.set_defaults(func = initProject)
 
     buildParser = subparsers.add_parser('build', help = 'Build a project')
-    buildParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], required = True, help = 'Used for linking lower-level board libraries')
+    buildParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], help = 'Used for linking lower-level board libraries')
     buildParser.add_argument('-f', '--float', type = str, choices = ['soft', 'hard'], default = 'soft', help = 'Use soft or hard floating-point, default is soft')
     buildParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     buildParser.set_defaults(func = buildProject)
 
     downloadParser = subparsers.add_parser('download', help = 'Download a compiled executable to the board\'s SD card')
-    downloadParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], required = True, help = 'Used for linking lower-level board libraries')
+    downloadParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], help = 'Used for linking lower-level board libraries')
     downloadParser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     downloadParser.set_defaults(func = downloadProject)
 
-    configParser = subparsers.add_parser('config', help = 'Control the project with MadMachine project file')
-    configParser.add_argument('-a', '--action', type = str, choices =['generate', 'build', 'download'], required = True, help = 'Use MadMachine Project File to take actions')
-    configParser.set_defaults(func = config)
+    runParser = subparsers.add_parser('run', help = 'Take actions according to MadMachine project file')
+    runParser.add_argument('-a', '--action', type = str, choices =['generate', 'build', 'download', 'get-status', 'get-name'], required = True, help = 'Choose the action you want')
+    runParser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], help = 'Generate MadMachine project file by passing this parameter')
+    runParser.set_defaults(func = runAction)
 
     args = parentParser.parse_args()
     d = vars(args)
