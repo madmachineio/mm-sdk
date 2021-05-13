@@ -38,7 +38,9 @@ This action should be done in a standalone thread periodically so it would not b
 
 ## Download a project
 
-1. `cd` into the project directory
-2. `mm-sdk/usr/mm/mm run --action download`
-
+1. If the SD card status is not "*** ready", stop and alert.
+2. Pause the SD card detecting thread
+3. `cd` into the project directory
+4. `mm-sdk/usr/mm/mm run --action download`
+5. Resume the SD card detecting thread
 
