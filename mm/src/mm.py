@@ -557,8 +557,15 @@ def darwinRecursiveParsing(data, vid, pid):
             venderId = venderId.lower()
             productId = productId.lower()
             if venderId.startswith(vid) and productId.startswith(pid):
-                gMountPath = data.get('Media')[0].get('volumes')[0].get('mount_point')
-                return
+                first = data.get('Media')
+                if first is not None:
+                    second = first[0].get('volumes')
+                    if second is not None:
+                        third = second[0].get('mount_point')
+                        if third is not None:
+                            #gMountPath = data.get('Media')[0].get('volumes')[0].get('mount_point')
+                            gMountPath = third
+                            return
         for key, value in data.items():
             if isinstance(value, dict):
                 darwinRecursiveParsing(value, vid, pid)
