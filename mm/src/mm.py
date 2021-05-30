@@ -176,6 +176,8 @@ def getProjectInfo(info):
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
     if p.poll():
+        cmdOut, cmdErr = p. communicate()
+        print(cmdErr.decode('utf-8'))
         os._exit(-1)
     cmdOut, cmdErr = p.communicate()
     jsonData = cmdOut.decode('utf-8')
@@ -584,6 +586,8 @@ def darwinGetMountPoint(boardName):
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     p.wait()
     if p.poll():
+        cmdOut, cmdErr = p. communicate()
+        print(cmdErr.decode('utf-8'))
         os._exit(-1)
     cmdOut, cmdErr = p.communicate()
     jsonData = cmdOut.decode('utf-8')
