@@ -711,9 +711,11 @@ def runAction(args):
         for item in flags:
             cmd += ' ' + item
 
+        print("Building...")
         p = subprocess.Popen(cmd, shell = True)
         p.wait()
         if p.poll():
+            print("error: Build failed")
             os._exit(-1)
         os._exit(0)
     
@@ -747,9 +749,12 @@ def runAction(args):
         cmd = quoteStr(getSdkTool('mm')) + ' download'
         for item in flags:
             cmd += ' ' + item
+
+        print("Downloading...")
         p = subprocess.Popen(cmd, shell = True)
         p.wait()
         if p.poll():
+            print("error: Download failed")
             os._exit(-1)
         os._exit(0)
 
