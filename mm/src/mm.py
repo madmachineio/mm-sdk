@@ -648,27 +648,27 @@ def runAction(args):
         projectFile = gProjectPath / 'Package.mmp'
         if not projectFile.exists():
             print('error: Cannot find MadMachine project file')
-            os._exit(0)
+            os._exit(-1)
         tomlString = projectFile.read_text()
         try:
             tomlDic = toml.loads(tomlString)
         except:
             print('error: Project file decoding failed')
-            os._exit(0)
+            os._exit(-1)
 
         boardName = tomlDic.get('board')
         if boardName is None:
             print('error: Cannot find board name in project file')
-            os._exit(0)
+            os._exit(-1)
 
         if gSystem != 'Darwin':
             print('Board detecting on ' + gSystem + ' is not supported currently, please copy the bin file manually')
-            os._exit(0)
+            os._exit(-1)
 
         darwinGetMountPoint(boardName)
 
         if gMountPath is None:
-            print(boardName + ' is not connected')
+            print(boardName + ' not connected')
         else:
             print(boardName + ' ready')
         os._exit(0)
