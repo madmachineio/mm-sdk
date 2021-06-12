@@ -270,7 +270,7 @@ def generateBin(projectName, targetArch):
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
-        print('error: Generating binary failed!')
+        print('error: Generate binary failed!')
         os._exit(-1)
 
 def addCrcToBin(boardName, projectName, targetArch):
@@ -496,7 +496,7 @@ def generateDestinationJson(boardName, floatType, targetArch):
     js = json.dumps(dic, indent = 4)
     return js
 
-def buildSwift(destinationFile):
+def compileSwift(destinationFile):
     flags = [
         '-c release',
         '--destination',
@@ -514,6 +514,7 @@ def buildSwift(destinationFile):
     p = subprocess.Popen(cmd, shell = True)
     p.wait()
     if p.poll():
+        print('error: Compile failed')
         os._exit(-1)
 
 def buildProject(args):
@@ -537,7 +538,7 @@ def buildProject(args):
     destinationFile = gProjectPath / '.build/destination.json'
     destinationFile.write_text(js, encoding='UTF-8')
 
-    buildSwift(destinationFile)
+    compileSwift(destinationFile)
 
     if (gProjectPath / '.build' / targetArch / 'release' / projectName).exists():
         generateBin(projectName, targetArch)
@@ -600,21 +601,26 @@ def darwinDownload(boardName):
     
     source = gProjectPath / '.build' / 'release' / fileName
     if not source.exists():
-        print('error: Cannot find the target file, please build project first')
+        print('error: Cannot find ' + fileName + ', please build the project first')
         os._exit(-1)
 
+    print('Detecting SD card...')
     darwinGetMountPoint(boardName)
     if not gMountPath:
-        print('error: Cannot find ' +  boardName + ', please make sure it is plugged in and corectlly mounted')
+        print('error: Cannot find ' +  boardName + ', please make sure it is corectlly mounted')
         os._exit(-1)
-    
+    print(gMountPath + ' found')
     target = Path(gMountPath) / fileName
-    shutil.copy(source, target)
+
+    print('Copying ' + fileName + '...')
+    shutil.copyfile(source, target)
     
     cmd = 'diskutil eject ' + quoteStr(gMountPath)
+    print('Ejecting SD card...')
     p = subprocess.Popen(cmd, shell=True)
     p.wait()
     if p.poll():
+        print('error: Eject SD card failed')
         os._exit(-1)
 
 def downloadProject(args):
@@ -625,7 +631,7 @@ def downloadProject(args):
     boardName = args.board
 
     if gSystem != 'Darwin':
-        print("error: Windows and Linux is not supported currently, please download the bin file manually")
+        print("error: Windows and Linux are not supported currently, please copy the binary file manually")
         os._exit(-1)
     else:
         darwinDownload(boardName)
@@ -674,7 +680,6 @@ def runAction(args):
         os._exit(0)
 
 
-
     projectName = getProjectInfo('name')
 
     if acctionType == 'get-name':
@@ -699,7 +704,7 @@ def runAction(args):
         boardName = tomlDic.get('board')
         floatType = tomlDic.get('float-type')
         if boardName is None or floatType is None:
-            print('error: Project file error')
+            print('error: Cannot find board name in project file')
             os._exit(-1)
 
         flags = [
@@ -740,7 +745,7 @@ def runAction(args):
 
         boardName = tomlDic.get('board')
         if boardName is None:
-            print('error: Project file error')
+            print('error: Cannot find board name in project file')
             os._exit(-1)
 
         flags = [
