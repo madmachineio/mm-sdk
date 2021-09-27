@@ -324,11 +324,11 @@ def getCIncludePath(floatType):
         subPath = '/v7e-m/nofp'
 
     flags = [
-        'usr/arm-none-eabi/include/c++/9.3.1',
-        'usr/arm-none-eabi/include/c++/9.3.1/arm-none-eabi/thumb' + subPath,
-        'usr/arm-none-eabi/include/c++/9.3.1/backward',
-        'usr/lib/gcc/arm-none-eabi/9.3.1/include',
-        'usr/lib/gcc/arm-none-eabi/9.3.1/include-fixed',
+        'usr/arm-none-eabi/include/c++/10.3.1',
+        'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + subPath,
+        'usr/arm-none-eabi/include/c++/10.3.1/backward',
+        'usr/lib/gcc/arm-none-eabi/10.3.1/include',
+        'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
         'usr/arm-none-eabi/include',
     ]
     flags = ['-I' + str(gSdkPath / item) for item in flags]
@@ -419,19 +419,19 @@ def getLibrarySearchFlags(floatType):
         subPath = '/v7e-m/nofp'
     
     flags = [
-        'usr/lib/gcc/arm-none-eabi/9.3.1/thumb' + subPath,
+        'usr/lib/gcc/arm-none-eabi/10.3.1/thumb' + subPath,
         'usr/lib/gcc/thumb' + subPath,
-        'usr/arm-none-eabi/lib/arm-none-eabi/9.3.1/thumb' + subPath,
+        'usr/arm-none-eabi/lib/arm-none-eabi/10.3.1/thumb' + subPath,
         'usr/arm-none-eabi/lib/thumb' + subPath,
-        'usr/arm-none-eabi/lib/arm-none-eabi/9.3.1/thumb' + subPath,
+        'usr/arm-none-eabi/lib/arm-none-eabi/10.3.1/thumb' + subPath,
         'usr/arm-none-eabi/lib/thumb' + subPath,
-        'usr/arm-none-eabi/usr/lib/arm-none-eabi/9.3.1/thumb' + subPath,
+        'usr/arm-none-eabi/usr/lib/arm-none-eabi/10.3.1/thumb' + subPath,
         'usr/arm-none-eabi/usr/lib/thumb' + subPath,
-        'usr/lib/gcc/arm-none-eabi/9.3.1',
+        'usr/lib/gcc/arm-none-eabi/10.3.1',
         'usr/lib/gcc',
-        'usr/arm-none-eabi/lib/arm-none-eabi/9.3.1',
+        'usr/arm-none-eabi/lib/arm-none-eabi/10.3.1',
         'usr/arm-none-eabi/lib',
-        'usr/arm-none-eabi/usr/lib/arm-none-eabi/9.3.1',
+        'usr/arm-none-eabi/usr/lib/arm-none-eabi/10.3.1',
         'usr/arm-none-eabi/usr/lib',
     ]
     flags = ['-L' + str(gSdkPath / item) for item in flags]
