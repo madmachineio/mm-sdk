@@ -26,8 +26,8 @@ VERBOSE_VERY = 2
 VERBOSE_EXTREME = 3
 '''Extremely verbose output messages will be printed.'''
 
-VERBOSE = VERBOSE_NONE
-'''Global verbosity level. VERBOSE_NONE is the default.'''
+VERBOSE = VERBOSE_NORMAL
+'''Global verbosity level. VERBOSE_NORMAL is the default.'''
 
 #: Color used (when applicable) for printing with inf()
 INF_COLOR = colorama.Fore.LIGHTGREEN_EX
@@ -58,7 +58,7 @@ def dbg(*args, level=VERBOSE_NORMAL):
         return
     print(*args)
 
-def inf(*args, colorize=False):
+def inf(*args, colorize=False, level=VERBOSE_NORMAL):
     '''Print an informational message.
 
     :param args: sequence of arguments to print.
@@ -66,6 +66,9 @@ def inf(*args, colorize=False):
                      is undefined or true, and stdout is a terminal, then
                      the message is printed in green.
     '''
+
+    if level > VERBOSE:
+        return
 
     if not _use_colors():
         colorize = False
@@ -98,7 +101,7 @@ def wrn(*args):
 
     :param args: sequence of arguments to print.
 
-    The message is prefixed with the string ``"WARNING: "``.
+    The message is prefixed with the string ``"warning: "``.
 
     If the configuration option ``color.ui`` is undefined or true and
     stdout is a terminal, then the message is printed in yellow.'''
@@ -106,20 +109,20 @@ def wrn(*args):
     if _use_colors():
         print(WRN_COLOR, end='', file=sys.stderr)
 
-    print('WARNING: ', end='', file=sys.stderr)
+    print('warning: ', end='', file=sys.stderr)
     print(*args, file=sys.stderr)
 
     if _use_colors():
         _reset_colors(sys.stderr)
 
-def err(*args, fatal=False):
+def err(*args, prefix=False):
     '''Print an error.
 
     This function does not abort the program. For that, use `die()`.
 
     :param args: sequence of arguments to print.
-    :param fatal: if True, the the message is prefixed with "FATAL ERROR: ";
-                  otherwise, "ERROR: " is used.
+    :param prefix: if True, the the message is prefixed with "error: ";
+                  otherwise, "" is used.
 
     If the configuration option ``color.ui`` is undefined or true and
     stdout is a terminal, then the message is printed in red.'''
@@ -127,13 +130,13 @@ def err(*args, fatal=False):
     if _use_colors():
         print(ERR_COLOR, end='', file=sys.stderr)
 
-    print('FATAL ERROR: ' if fatal else 'ERROR: ', end='', file=sys.stderr)
+    print('error: ' if prefix else '', end='', file=sys.stderr)
     print(*args, file=sys.stderr)
 
     if _use_colors():
         _reset_colors(sys.stderr)
 
-def die(*args, exit_code=1) -> NoReturn:
+def die(*args, exit_code=1, prefix=True) -> NoReturn:
     '''Print a fatal error, and abort the program.
 
     :param args: sequence of arguments to print.
@@ -141,7 +144,7 @@ def die(*args, exit_code=1) -> NoReturn:
 
     Equivalent to ``die(*args, fatal=True)``, followed by an attempt to
     abort with the given *exit_code*.'''
-    err(*args, fatal=True)
+    err(*args, prefix=prefix)
     sys.exit(exit_code)
 
 def msg(*args, color=None, stream=sys.stdout):
