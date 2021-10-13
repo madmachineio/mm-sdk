@@ -1,39 +1,78 @@
 import os, sys, argparse
 from pathlib import Path
-import log, util, spm
+import log, util, spm, mmp
 
-PROJECT_PATH=''
+PROJECT_PATH = ''
 
 def init_project(args):
-    mmp = Path(PROJECT_PATH / 'Package.mmp')
-    manifest = Path(PROJECT_PATH / 'Package.swift')
+    mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+    spm_manifest = Path(PROJECT_PATH / 'Package.swift')
 
-    if mmp.is_file():
-        log.die('a Package.mmp already exists in this directory')
+    if mmp_manifest.is_file():
+        log.die('Package.mmp already exists in this directory')
 
-    if not manifest.is_file():
+    if not spm_manifest.is_file():
         init_type = args.type
         if args.name:
             init_name = args.name
         else:
             init_name = PROJECT_PATH.name
-        spm.init_manifest(p_name=init_name, p_type=init_type, pos=manifest)
+        content = spm.init_manifest(p_name=init_name, p_type=init_type)
+        spm_manifest.write_text(content, encoding='UTF-8')
     else:
-        log.wrn('a Package.swift already exists, ignoring init type and name')
+        log.wrn('Package.swift already exists, ignoring init type and project name')
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
 
     board_name = args.board
-    if board_name is None and init_type == 'executable':
-        log.die('board name is required to initialize an executable')
+    content = mmp.init_manifest(board=board_name, p_type=init_type)
+    log.inf('Creating Package.mmp', level=log.VERBOSE_VERY)
+    mmp_manifest.write_text(content, encoding='UTF-8')
 
 
 def build_project(args):
-    log.inf('build')
+    mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
+    if not mmp_manifest.is_file():
+        log.die('Package.mmp is required to build the project')
+    
+    content = mmp_manifest.read_text()
+    mmp.initialize(content)
+
+    mmp.clean(p_path=PROJECT_PATH)
+    p_type = spm.get_project_type()
+
+    js_data = mmp.get_destination(p_type=p_type)
+    (PROJECT_PATH / '.build').mkdir(exist_ok=True)
+    destination = PROJECT_PATH / '.build/destination.json'
+    destination.write_text(js_data, encoding='UTF-8')
+
+    if p_type == 'executable':
+        log.inf('Building executable...')
+    else:
+        log.inf('Building library...')
+
+    spm.build(destination=destination)
+
+    triple = mmp.get_triple()
+    p_name = spm.get_project_name()
+    path = PROJECT_PATH / '.build' / triple / 'release'
+
+    if p_type == 'executable' and (path / p_name).exists():
+        log.inf('Creating binary...')
+        mmp.create_binary(path=path, name=p_name)
+    
+    log.inf('Done')
+    
 
 def download_project(args):
     log.inf('download')
+
+
+def clean_project(args):
+    mmp.clean(p_path=PROJECT_PATH)
+    if args.deep:
+        spm.clean()
 
 
 def main():
@@ -68,6 +107,7 @@ def main():
     util.set_sdk_path(sdk_path)
     
     PROJECT_PATH = Path('.').resolve()
+    
     args.func(args)
 
 if __name__ == "__main__":

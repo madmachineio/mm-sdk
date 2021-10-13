@@ -1,6 +1,5 @@
 import json
-from pathlib import Path
-import log, util
+import util, log
 
 DEFAULT_LIB_MANIFEST = """// swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
@@ -68,7 +67,7 @@ def describe():
     return data
 
 
-def init_manifest(p_name, p_type, pos):
+def init_manifest(p_name, p_type):
     flags = [
         util.get_tool('swift-package'),
         'init',
@@ -77,15 +76,14 @@ def init_manifest(p_name, p_type, pos):
     ]
 
     ret = util.run_command(flags)
-    log.inf(ret, level = log.VERBOSE_VERY)
+    log.inf(ret, level=log.VERBOSE_VERY)
 
     if p_type == 'library':
         content = DEFAULT_LIB_MANIFEST
     else:
         content = DEFAULT_EXE_MANIFEST
     
-    content = content.format(name=p_name)
-    pos.write_text(content, encoding='UTF-8')
+    return content.format(name=p_name)
 
 
 def get_project_name():
@@ -100,8 +98,8 @@ def get_project_type():
     project_name = json.loads(data).get('name')
 
     project_tpye = None
-    products = json.loads(data).get('products')
 
+    products = json.loads(data).get('products')
     for product in products:
         if product.get('name') == project_name:
             product_tpye = product.get('type')
@@ -123,3 +121,23 @@ def get_project_type():
         project_tpye = 'executable'
     
     return project_tpye
+
+def build(destination):
+    flags = [
+        util.get_tool('swift-build'),
+        '-c release',
+        '--destination',
+        util.quote_string(destination)
+    ]
+
+    if util.command(flags):
+        log.die('compile failed')
+
+def clean():
+    flags = [
+        util.get_tool('swift-package'),
+        'clean'
+    ]
+    ret = util.command(flags)
+
+    return ret
