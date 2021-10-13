@@ -60,13 +60,14 @@ def get_board_name():
         log.wrn('board is missing in Package.mmp')
     return board
 
-def get_board_info(name, info):
-    if name == 'SwiftIOBoard':
-        board = SWIFTIO_BOARD
+def get_board_info(info):
+    board = TOML_CONTENT.get('board')
+    if board == 'SwiftIOBoard':
+        dic = SWIFTIO_BOARD
     else:
-        board = SWIFTIO_FEATHER
+        dic = SWIFTIO_FEATHER
     
-    return board.get(info)
+    return dic.get(info)
 
 def get_triple():
     float_type = TOML_CONTENT.get('float-type')
@@ -120,23 +121,42 @@ def get_c_include_path():
         'usr/arm-none-eabi/include/c++/10.3.1/backward',
         'usr/lib/gcc/arm-none-eabi/10.3.1/include',
         'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
-        'usr/arm-none-eabi/include',
+        'usr/arm-none-eabi/include'
     ]
 
     flags = ['-I' + str(sdk_path / item) for item in flags] 
     return flags
+
+def get_clang_include_path():
+    triple = get_triple()
+    sdk_path = util.get_sdk_path()
+
+    if triple == 'thumbv7em-unknown-none-eabihf':
+        sub_path = '/v7e-m+dp/hard'
+    else:
+        sub_path = '/v7e-m/nofp'
+
+    flags = [
+        'usr/arm-none-eabi/include/c++/10.3.1',
+        'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
+        'usr/arm-none-eabi/include/c++/10.3.1/backward',
+        'usr/lib/swift/clang/include',
+        'usr/arm-none-eabi/include'
+    ]
+
+    flags = ['-I' + str(sdk_path / item) for item in flags]
+    return flags
+
 
 def get_cc_flags(p_type):
     flags = []
 
     flags += get_c_arch()
     flags += get_c_predefined()
-
-    if p_type == 'executable':
-        flags += get_c_include_path()
+    #flags += get_c_include_path()
+    flags += get_clang_include_path()
     
     return flags
-
 
 
 
@@ -213,7 +233,7 @@ def get_swift_linker_script():
 
     return flags
 
-def get_swift_sdk_search_path():
+def get_swift_link_search_path():
     sdk_path = util.get_sdk_path()
     triple = get_triple()
     if triple == 'thumbv7em-unknown-none-eabihf':
@@ -223,19 +243,7 @@ def get_swift_sdk_search_path():
     
     flags = [
         'usr/lib/gcc/arm-none-eabi/10.3.1/thumb' + sub_path,
-        'usr/lib/gcc/thumb' + sub_path,
-        'usr/arm-none-eabi/lib/arm-none-eabi/10.3.1/thumb' + sub_path,
-        'usr/arm-none-eabi/lib/thumb' + sub_path,
-        'usr/arm-none-eabi/lib/arm-none-eabi/10.3.1/thumb' + sub_path,
-        'usr/arm-none-eabi/lib/thumb' + sub_path,
-        'usr/arm-none-eabi/usr/lib/arm-none-eabi/10.3.1/thumb' + sub_path,
-        'usr/arm-none-eabi/usr/lib/thumb' + sub_path,
-        'usr/lib/gcc/arm-none-eabi/10.3.1',
-        'usr/lib/gcc',
-        'usr/arm-none-eabi/lib/arm-none-eabi/10.3.1',
-        'usr/arm-none-eabi/lib',
-        'usr/arm-none-eabi/usr/lib/arm-none-eabi/10.3.1',
-        'usr/arm-none-eabi/usr/lib',
+        'usr/arm-none-eabi/lib/thumb' + sub_path
     ]
     flags = ['-L' + str(sdk_path / item) for item in flags]
 
@@ -289,7 +297,7 @@ def get_swiftc_flags(p_type):
     if p_type == 'executable':
         flags += get_swift_linker_config()
         flags += get_swift_linker_script()
-        flags += get_swift_sdk_search_path()
+        flags += get_swift_link_search_path()
         flags += get_swift_board_library()
         flags += get_swift_sdk_library()
     
@@ -342,12 +350,12 @@ def create_binary(path, name):
         util.quote_string(elf_path),
         util.quote_string(bin_path)
     ]
-
+    
+    log.inf('Creating binary...')
     if util.command(flags):
         log.die('creating binary failed!')
     
-    board = get_board_name()
-    target_file = get_board_info(name=board, info='target_file')
+    target_file = get_board_info(info='target_file')
     target_path = path / target_file
 
     data = bin_path.read_bytes()
@@ -355,6 +363,7 @@ def create_binary(path, name):
     mask = (1 << 8) - 1
     list_dec = [(value >> k) & mask for k in range(0, 32, 8)]
 
+    log.inf('Creating ' + target_file + '...')
     with open(target_path, 'wb') as file:
         file.write(data)
         for number in list_dec:

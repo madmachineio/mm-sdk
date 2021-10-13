@@ -56,15 +56,17 @@ let package = Package(
 )
 """
 
-def describe():
+JSON_DATA = ''
+
+def initialize():
+    global JSON_DATA
+
     flags = [
         util.get_tool('swift-package'),
         'describe',
         '--type json'
     ]
-    data = util.run_command(flags)
-
-    return data
+    JSON_DATA = util.run_command(flags)
 
 
 def init_manifest(p_name, p_type):
@@ -87,19 +89,17 @@ def init_manifest(p_name, p_type):
 
 
 def get_project_name():
-    data = describe()
-    name = json.loads(data).get('name')
+    name = json.loads(JSON_DATA).get('name')
 
     return name
 
 
 def get_project_type():
-    data = describe()
-    project_name = json.loads(data).get('name')
+    project_name = json.loads(JSON_DATA).get('name')
 
     project_tpye = None
 
-    products = json.loads(data).get('products')
+    products = json.loads(JSON_DATA).get('products')
     for product in products:
         if product.get('name') == project_name:
             product_tpye = product.get('type')
@@ -111,7 +111,7 @@ def get_project_type():
                 break
 
     if project_tpye is None:
-        targets = json.loads(data).get('targets')
+        targets = json.loads(JSON_DATA).get('targets')
         for target in targets:
             if target.get('name') == project_name:
                 project_tpye = target.get('type')
@@ -122,13 +122,18 @@ def get_project_type():
     
     return project_tpye
 
-def build(destination):
+def build(destination, p_type):
     flags = [
         util.get_tool('swift-build'),
         '-c release',
         '--destination',
         util.quote_string(destination)
     ]
+
+    if p_type == 'executable':
+        log.inf('Building executable...')
+    else:
+        log.inf('Building library...')
 
     if util.command(flags):
         log.die('compile failed')

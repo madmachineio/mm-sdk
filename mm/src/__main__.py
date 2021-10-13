@@ -20,7 +20,8 @@ def init_project(args):
         content = spm.init_manifest(p_name=init_name, p_type=init_type)
         spm_manifest.write_text(content, encoding='UTF-8')
     else:
-        log.wrn('Package.swift already exists, ignoring init type and project name')
+        log.wrn('Package.swift already exists, ignoring project type and project name')
+        spm.initialize()
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
 
@@ -40,6 +41,8 @@ def build_project(args):
     mmp.initialize(content)
 
     mmp.clean(p_path=PROJECT_PATH)
+    spm.initialize()
+    p_name = spm.get_project_name()
     p_type = spm.get_project_type()
 
     js_data = mmp.get_destination(p_type=p_type)
@@ -47,22 +50,15 @@ def build_project(args):
     destination = PROJECT_PATH / '.build/destination.json'
     destination.write_text(js_data, encoding='UTF-8')
 
-    if p_type == 'executable':
-        log.inf('Building executable...')
-    else:
-        log.inf('Building library...')
-
-    spm.build(destination=destination)
+    spm.build(destination=destination, p_type=p_type)
 
     triple = mmp.get_triple()
-    p_name = spm.get_project_name()
     path = PROJECT_PATH / '.build' / triple / 'release'
 
     if p_type == 'executable' and (path / p_name).exists():
-        log.inf('Creating binary...')
         mmp.create_binary(path=path, name=p_name)
     
-    log.inf('Done')
+    log.inf('Done!')
     
 
 def download_project(args):
