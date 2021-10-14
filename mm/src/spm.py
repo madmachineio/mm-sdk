@@ -14,7 +14,7 @@ let package = Package(
     ],
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/madmachineio/SwiftIO.git", from: "0.0.1"),
+        .package(url: "https://github.com/madmachineio/SwiftIO.git", .upToNextMajor(from: "0.0.1")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -36,9 +36,9 @@ let package = Package(
     name: "{name}",
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/madmachineio/SwiftIO.git", from: "0.0.1"),
-        .package(url: "https://github.com/madmachineio/MadBoards.git", from: "0.0.1"),
-        .package(url: "https://github.com/madmachineio/MadDrivers.git", from: "0.0.1"),
+        .package(url: "https://github.com/madmachineio/SwiftIO.git", .upToNextMajor(from: "0.0.1")),
+        .package(url: "https://github.com/madmachineio/MadBoards.git", .upToNextMajor(from: "0.0.1")),
+        .package(url: "https://github.com/madmachineio/MadDrivers.git", .upToNextMajor(from: "0.0.1")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
@@ -48,7 +48,9 @@ let package = Package(
             dependencies: [
                 "SwiftIO",
                 "MadBoards",
-                "MadDrivers"]),
+                // use specific library would speed up the compile procedure
+                .product(name: "MadDrivers", package: "MadDrivers")
+            ]),
         .testTarget(
             name: "{name}Tests",
             dependencies: ["{name}"]),
@@ -118,7 +120,7 @@ def get_project_type():
                 break
 
     if project_tpye is None:
-        project_tpye = 'executable'
+        project_tpye = 'library'
     
     return project_tpye
 

@@ -20,12 +20,15 @@ DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
 # Edit this file would change the behavior of the building/downloading procedure
 # Those project files in the dependent libraries would be IGNORED
 
-# Specify the board name below, there are "SwiftIOBoard" and "SwiftIOFeather" now
+# Specify the board name below
+# There are "SwiftIOBoard" and "SwiftIOFeather" now
 board = "{name}"
 
-# Specifiy the floating-point type below, there are "soft" and "hard"
-# If your code use significant floating-point calculation, plz set it to "hard"
-float-type = "{float}"
+# Specifiy the target triple below
+# There are "thumbv7em-unknown-none-eabi" and "thumbv7em-unknown-none-eabihf" now
+# If your code use significant floating-point calculation,
+# plz set it to "thumbv7em-unknown-none-eabihf"
+triple = "{triple}"
 
 # Reserved for future use 
 version = 1
@@ -43,14 +46,11 @@ def initialize(content):
     
 
 
-def init_manifest(board, p_type):
-    if board is None and p_type == 'executable':
-        log.die('board name is required to initialize an executable')
-    
+def init_manifest(board, p_type):    
     if p_type == 'library':
         board = ''
 
-    content = DEFAULT_MMP_MANIFEST.format(name=board, float='soft')
+    content = DEFAULT_MMP_MANIFEST.format(name=board, triple='thumbv7em-unknown-none-eabi')
     return content
 
 
@@ -60,26 +60,38 @@ def get_board_name():
         log.wrn('board is missing in Package.mmp')
     return board
 
+
+def get_triple():
+    triple = TOML_CONTENT.get('triple')
+
+    if triple is None:
+        float_type= TOML_CONTENT.get('float-type')
+        if float_type == 'hard':
+            triple = 'thumbv7em-unknown-none-eabihf'
+        elif float_type == 'soft':
+            triple = 'thumbv7em-unknown-none-eabi'
+        else:
+            log.die('unknown float-type')
+
+    if triple is None:
+        log.die('missing triple config in Package.mmp')
+
+    if (triple != 'thumbv7em-unknown-none-eabi') and (triple != 'thumbv7em-unknown-none-eabihf'):
+        log.die('unknown triple')
+
+    return triple
+
 def get_board_info(info):
     board = TOML_CONTENT.get('board')
     if board == 'SwiftIOBoard':
         dic = SWIFTIO_BOARD
-    else:
+    elif board == 'SwiftIOFeather':
         dic = SWIFTIO_FEATHER
+    else:
+        log.die('unknown board')
     
     return dic.get(info)
 
-def get_triple():
-    float_type = TOML_CONTENT.get('float-type')
-
-    if float_type == 'soft':
-        triple = 'thumbv7em-unknown-none-eabi'
-    elif float_type == 'hard':
-        triple = 'thumbv7em-unknown-none-eabihf'
-    else:
-        log.die('missing float-type config in Package.mmp')
-    
-    return triple
 
 def get_c_arch():
     triple = get_triple()
@@ -106,7 +118,7 @@ def get_c_predefined():
     ]
     return flags
 
-def get_c_include_path():
+def get_gcc_include_path():
     triple = get_triple()
     sdk_path = util.get_sdk_path()
 
@@ -153,7 +165,7 @@ def get_cc_flags(p_type):
 
     flags += get_c_arch()
     flags += get_c_predefined()
-    #flags += get_c_include_path()
+    #flags += get_gcc_include_path()
     flags += get_clang_include_path()
     
     return flags
@@ -212,7 +224,7 @@ def get_swift_linker_config():
         '--build-id=none',
         '--sort-common=descending',
         '--sort-section=alignment',
-        '--no-enum-size-warning',
+        #'--no-enum-size-warning',
         '--print-memory-usage'
     ]
     flags = ['-Xlinker ' + item for item in flags]
@@ -276,7 +288,7 @@ def get_swift_board_library():
     return flags
 
 
-def get_swift_sdk_library():
+def get_swift_gcc_library():
     flags = [
         '-lstdc++',
         '-lc',
@@ -299,7 +311,7 @@ def get_swiftc_flags(p_type):
         flags += get_swift_linker_script()
         flags += get_swift_link_search_path()
         flags += get_swift_board_library()
-        flags += get_swift_sdk_library()
+        flags += get_swift_gcc_library()
     
     return flags
 

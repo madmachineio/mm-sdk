@@ -1,6 +1,6 @@
-import os, sys, argparse
+import os, sys, platform, argparse
 from pathlib import Path
-import log, util, spm, mmp
+import log, util, spm, mmp, download
 
 PROJECT_PATH = ''
 
@@ -11,21 +11,23 @@ def init_project(args):
     if mmp_manifest.is_file():
         log.die('Package.mmp already exists in this directory')
 
+    board_name = args.board
     if not spm_manifest.is_file():
         init_type = args.type
         if args.name:
             init_name = args.name
         else:
             init_name = PROJECT_PATH.name
+        if init_type == 'executable' and board_name is None:
+            log.die('board name is required to initialize an executable')
         content = spm.init_manifest(p_name=init_name, p_type=init_type)
         spm_manifest.write_text(content, encoding='UTF-8')
     else:
-        log.wrn('Package.swift already exists, ignoring project type and project name')
+        log.wrn('Package.swift already exists, ignoring specified project type and project name')
         spm.initialize()
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
 
-    board_name = args.board
     content = mmp.init_manifest(board=board_name, p_type=init_type)
     log.inf('Creating Package.mmp', level=log.VERBOSE_VERY)
     mmp_manifest.write_text(content, encoding='UTF-8')
@@ -62,7 +64,24 @@ def build_project(args):
     
 
 def download_project(args):
-    log.inf('download')
+    system = platform.system()
+
+    if system != 'Darwin':
+        log.die('Windows and Linux are not supported currently, please copy the binary file manually')
+    
+    mmp.initialize()
+    board_name = mmp.get_board_name()
+    if board_name is None:
+        log.die('Board name is not specified')
+
+    file_name = mmp.get_board_info('target_file')
+    source = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+
+    if not source.is_file():
+        log.die('cannot find ' + file_name)
+    
+    download.darwin_download(source=source)
+    log.inf('Done!')
 
 
 def clean_project(args):
@@ -91,6 +110,10 @@ def main():
     download_parser = subparsers.add_parser('download', help = 'Download a compiled executable to the board\'s SD card')
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_project)
+
+    clean_parser = subparsers.add_parser('clean', help = 'Clean a project')
+    clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all outpus")
+    clean_parser.set_defaults(func = clean_project)
 
     args = parser.parse_args()
     if vars(args).get('func') is None:
