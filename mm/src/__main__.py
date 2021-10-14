@@ -74,7 +74,7 @@ def download_project(args):
     system = platform.system()
 
     if system != 'Darwin':
-        log.die('Windows and Linux are not supported currently, please copy the binary file manually')
+        log.die(system + ' is not supported currently, please copy the binary file manually')
     
     content = mmp_manifest.read_text()
     mmp.initialize(content)
@@ -97,6 +97,29 @@ def clean_project(args):
     if args.deep:
         spm.clean()
 
+def get_info(args):
+    if args.info == 'usb':
+        mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+        if not mmp_manifest.is_file():
+            log.die('Package.mmp is required to get usb status')
+        system = platform.system()
+        if system != 'Darwin':
+            log.die(system + ' is not supported currently, please copy the bin file manually')
+        content = mmp_manifest.read_text()
+        mmp.initialize(content)
+        board_name = mmp.get_board_name()
+        mount_path = download.darwin_get_mount_point()
+        if mount_path is None:
+            log.inf(board_name + ' not connected')
+        else:
+            log.inf(board_name + ' ready')
+    else:
+        spm_manifest = Path(PROJECT_PATH / 'Package.swift')
+        if not spm_manifest.is_file():
+            log.die('Package.swift is required to get project name')
+        spm.initialize()
+        project_name = spm.get_project_name()
+        log.inf(project_name)
 
 def main():
     global PROJECT_PATH
@@ -115,9 +138,19 @@ def main():
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     build_parser.set_defaults(func = build_project)
 
-    download_parser = subparsers.add_parser('download', help = 'Download a compiled executable to the board\'s SD card')
+    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_project)
+
+    clean_parser = subparsers.add_parser('clean', help = 'Clean project')
+    clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all compilation outputs")
+    clean_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    clean_parser.set_defaults(func = clean_project)
+
+    get_parser = subparsers.add_parser('get', help = 'Get specified information, used by IDE')
+    get_parser.add_argument('--info', type = str, choices =['name', 'usb'], help = 'Information type')
+    get_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    get_parser.set_defaults(func = get_info)
 
     args = parser.parse_args()
     if vars(args).get('func') is None:

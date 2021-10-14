@@ -337,8 +337,8 @@ def get_destination(p_type):
     return js_text
 
 def clean(p_path):
-    triple = get_triple()
-    files = sorted((p_path / '.build' / triple / 'release').glob('*.bin'))
+    #triple = get_triple()
+    files = sorted((p_path / '.build' / 'release').glob('*.bin'))
     for file in files:
         file.unlink()
 
