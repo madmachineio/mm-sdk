@@ -1,4 +1,5 @@
-import json, pathlib, shutil
+import json, shutil
+from pathlib import Path
 import util, log, mmp
 
 DARWIN_MOUNT_PATH = None
@@ -58,10 +59,10 @@ def darwin_eject():
         'eject',
         util.quote_string(DARWIN_MOUNT_PATH)
     ]
-    log.inf('ejecting SD card...')
+    log.inf('Ejecting SD card...')
 
     if util.command(flags):
-        log.die('eject SD card failed!')
+        log.die('Eject SD card failed!')
 
 
 def darwin_download(source):
@@ -70,11 +71,12 @@ def darwin_download(source):
 
     if DARWIN_MOUNT_PATH is None:
         board_name = mmp.get_board_name()
-        log.die('cannot find ' + board_name + ', please make sure it's corectlly mounted)
+        log.die('Cannot find ' + board_name + ', please make sure it is corectlly mounted')
 
     log.inf(DARWIN_MOUNT_PATH + ' found')
-    file_name = source.name()
+    file_name = source.name
 
     target = Path(DARWIN_MOUNT_PATH) / file_name
-    log.inf('copying ' + file_name + '...')
+    log.inf('Copying ' + file_name + '...')
     shutil.copyfile(source, target)
+    darwin_eject()

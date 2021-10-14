@@ -27,6 +27,8 @@ def init_project(args):
         spm.initialize()
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
+        if init_type == 'executable' and board_name is None:
+            log.die('board name is required to initialize an executable')
 
     content = mmp.init_manifest(board=board_name, p_type=init_type)
     log.inf('Creating Package.mmp', level=log.VERBOSE_VERY)
@@ -64,12 +66,18 @@ def build_project(args):
     
 
 def download_project(args):
+    mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+
+    if not mmp_manifest.is_file():
+        log.die('Package.mmp is required to download the project')
+
     system = platform.system()
 
     if system != 'Darwin':
         log.die('Windows and Linux are not supported currently, please copy the binary file manually')
     
-    mmp.initialize()
+    content = mmp_manifest.read_text()
+    mmp.initialize(content)
     board_name = mmp.get_board_name()
     if board_name is None:
         log.die('Board name is not specified')
@@ -78,7 +86,7 @@ def download_project(args):
     source = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
 
     if not source.is_file():
-        log.die('cannot find ' + file_name)
+        log.die('Cannot find ' + file_name)
     
     download.darwin_download(source=source)
     log.inf('Done!')
@@ -110,10 +118,6 @@ def main():
     download_parser = subparsers.add_parser('download', help = 'Download a compiled executable to the board\'s SD card')
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_project)
-
-    clean_parser = subparsers.add_parser('clean', help = 'Clean a project')
-    clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all outpus")
-    clean_parser.set_defaults(func = clean_project)
 
     args = parser.parse_args()
     if vars(args).get('func') is None:
