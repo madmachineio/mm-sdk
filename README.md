@@ -89,28 +89,37 @@ Download and unzip the sdk to the directory `~`
 cd ~/Documents
 mkdir DemoProgram
 cd DemoProgram
-~/mm-sdk/usr/mm/mm init
+~/mm-sdk/usr/mm/mm init -b SwiftIOFeather
 ```
+or
+```shell
+python3 ~/mm-sdk/mm/src/__main__.py -b SwiftIOFeather
+```
+
 The `Package.swift` should look like below
 ```swift
 // swift-tools-version:5.3
 // The swift-tools-version declares the minimum version of Swift required to build this package.
-
 import PackageDescription
-
 let package = Package(
     name: "DemoProgram",
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/madmachineio/SwiftIO.git", .branch("main")),
-        .package(url: "https://github.com/madmachineio/MadBoards.git", .branch("main")),
+        .package(url: "https://github.com/madmachineio/SwiftIO.git", .upToNextMajor(from: "0.0.1")),
+        .package(url: "https://github.com/madmachineio/MadBoards.git", .upToNextMajor(from: "0.0.1")),
+        .package(url: "https://github.com/madmachineio/MadDrivers.git", .upToNextMajor(from: "0.0.1")),
     ],
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
         .target(
             name: "DemoProgram",
-            dependencies: ["SwiftIO", "MadBoards"]),
+            dependencies: [
+                "SwiftIO",
+                "MadBoards",
+                // use specific library would speed up the compile procedure
+                .product(name: "MadDrivers", package: "MadDrivers")
+            ]),
         .testTarget(
             name: "DemoProgramTests",
             dependencies: ["DemoProgram"]),
@@ -122,21 +131,24 @@ let package = Package(
 
 ```shell
 cd ~/Documents/DemoProgram
-~/mm-sdk/usr/mm/mm build -b SwiftIOBoard
+~/mm-sdk/usr/mm/mm build
 ```
-
+or
+```shell
+python3 ~/mm-sdk/mm/src/__main__.py build
+```
 
 
 ## Download an executable to the board
 
-After a successful building, there would be `.build/release/swiftio.bin` in your project directory. Note that the `.build` directory is hiden by default.
+After a successful building, there would be `.build/release/feather.bin` in your project directory. Note that the `.build` directory is hiden by default.
 
 Follow those steps to download the executable:
 
 1. Insert SD card to the board and connect the it to your computer through an USB cable
 2. Press the **Download** button and wait the onboard RGB LED turns to static **green**)
 2. A USB disk drive should be mounted on your computer
-3. Copy the `swiftio.bin` to the SD card root directory
+3. Copy the `feather.bin` to the SD card root directory
 4. Eject the USB drive and the program would run automatically
 
 ## Download an executable to the board using command(Only on macOS now)
@@ -145,77 +157,11 @@ After mounting the SD card:
 
 ```shell
 cd ~/Documents/DemoProgram
-~/mm-sdk/usr/mm/mm download -b SwiftIOBoard
+~/mm-sdk/usr/mm/mm download
+```
+or
+```shell
+python3 ~/mm-sdk/mm/src/__main__.py build
 ```
 
 This command would find the correspond bin file, copy it to the SD card and eject the SD card automatically
-
-------
-
-# Usage (Take Windows 10 for example)
-
-Download and unzip the sdk to the directory `D:\`
-
-Press `Win + R` keys on your keyboard, then type `cmd`, and press Enter on your keyboard or click OK to run a Command Prompt.
-
-`D:\mm-sdk\usr\mm\mm -h` command for quick help.
-
-`D:\mm-sdk\usr\mm\mm init -h` command for quick help about initializing a project.
-
-`D:\mm-sdk\usr\mm build -h` command for quick help about building a project.
-
-## Initialize an executable `DemoProgram` in `D:\`
-
-```shell
-D:
-mkdir DemoProgram
-cd DemoProgram
-D:\mm-sdk\usr\mm\mm init
-```
-
-The `Package.swift` should look like below
-
-```swift
-// swift-tools-version:5.3
-// The swift-tools-version declares the minimum version of Swift required to build this package.
-
-import PackageDescription
-
-let package = Package(
-    name: "DemoProgram",
-    dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/madmachineio/SwiftIO.git", .branch("main")),
-        .package(url: "https://github.com/madmachineio/MadBoards.git", .branch("main")),
-    ],
-    targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
-        .target(
-            name: "DemoProgram",
-            dependencies: ["SwiftIO", "MadBoards"]),
-        .testTarget(
-            name: "DemoProgramTests",
-            dependencies: ["DemoProgram"]),
-    ]
-)
-```
-
-## Build an executable
-
-```shell
-cd D:\DemoProgram
-D:\mm-sdk\usr\mm\mm build -b SwiftIOBoard
-```
-
-## Download an executable to the board
-
-After a successful building, there would be `.build\release\swiftio.bin` in your project directory.
-
-Follow those steps to download the executable:
-
-1. Insert SD card to the board and connect the it to your computer through an USB cable
-2. Press the **Download** button and wait the onboard RGB LED turns to static **green**
-2. A USB disk drive should be mounted on your computer
-3. Copy the `swiftio.bin` to the SD card root directory
-4. Eject the USB drive and the program would run automatically
