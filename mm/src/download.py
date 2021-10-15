@@ -71,7 +71,7 @@ def darwin_download(source):
 
     if DARWIN_MOUNT_PATH is None:
         board_name = mmp.get_board_name()
-        log.die('Cannot find ' + board_name + ', please make sure it is corectlly mounted')
+        log.die('Cannot find ' + board_name + ', please make sure it is successfully mounted')
 
     log.inf(DARWIN_MOUNT_PATH + ' found')
     file_name = source.name
