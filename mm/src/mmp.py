@@ -55,14 +55,15 @@ def init_manifest(board, p_type):
 
 
 def get_board_name():
-    board = TOML_CONTENT.get('board')
+    board = TOML_CONTENT.get('board').strip()
     if board is None:
-        log.wrn('board is missing in Package.mmp')
+        log.die('board is missing in Package.mmp')
+    
     return board
 
 
 def get_triple():
-    triple = TOML_CONTENT.get('triple')
+    triple = TOML_CONTENT.get('triple').strip()
 
     if triple is None:
         float_type= TOML_CONTENT.get('float-type')
@@ -73,11 +74,11 @@ def get_triple():
         else:
             log.die('unknown float-type')
 
-    if triple is None:
+    if triple is None or len(triple) == 0:
         log.die('missing triple config in Package.mmp')
 
     if (triple != 'thumbv7em-unknown-none-eabi') and (triple != 'thumbv7em-unknown-none-eabihf'):
-        log.die('unknown triple')
+        log.die('unknown triple: ' + triple)
 
     return triple
 
@@ -196,7 +197,7 @@ def get_swift_arch():
     
     return flags
 
-def get_swift_predefined():
+def get_swift_predefined(p_type):
     flags = [
         '-static-stdlib',
         '-Xfrontend',
@@ -212,6 +213,13 @@ def get_swift_predefined():
         '-Xcc',
         '-D_UNIX98_THREAD_MUTEX_ATTRIBUTES'
     ]
+
+    board = get_board_name()
+    if len(board) != 0:
+        flags.append('-D' + board.upper())
+    elif p_type == 'executable':
+        log.wrn('board is missing in Package.mmp')
+
     return flags
 
 def get_swift_linker_config():
@@ -299,12 +307,11 @@ def get_swift_gcc_library():
 
     return flags
 
-
 def get_swiftc_flags(p_type):
     flags = []
 
     flags += get_swift_arch()
-    flags += get_swift_predefined()
+    flags += get_swift_predefined(p_type)
     
     if p_type == 'executable':
         flags += get_swift_linker_config()
