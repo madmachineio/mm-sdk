@@ -55,15 +55,16 @@ def init_manifest(board, p_type):
 
 
 def get_board_name():
-    board = TOML_CONTENT.get('board').strip()
+    board = TOML_CONTENT.get('board')
+
     if board is None:
         log.die('board is missing in Package.mmp')
-    
-    return board
+
+    return board.strip()
 
 
 def get_triple():
-    triple = TOML_CONTENT.get('triple').strip()
+    triple = TOML_CONTENT.get('triple')
 
     if triple is None:
         float_type= TOML_CONTENT.get('float-type')
@@ -73,8 +74,10 @@ def get_triple():
             triple = 'thumbv7em-unknown-none-eabi'
         else:
             log.die('unknown float-type')
+    
+    triple = triple.strip()
 
-    if triple is None or len(triple) == 0:
+    if len(triple) == 0:
         log.die('missing triple config in Package.mmp')
 
     if (triple != 'thumbv7em-unknown-none-eabi') and (triple != 'thumbv7em-unknown-none-eabihf'):
