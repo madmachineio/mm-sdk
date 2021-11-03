@@ -131,7 +131,7 @@ def main():
     subparsers = parser.add_subparsers()
 
     init_parser = subparsers.add_parser('init', help = 'Initiaize a new project')
-    init_parser.add_argument('--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
+    init_parser.add_argument('-t', '--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
     init_parser.add_argument('--name', type = str, help = 'Initiaize the new project with a specified name, otherwise the project name depends on the current directory name')
     init_parser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], help = 'Generate MadMachine project file by passing this parameter')
     init_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
