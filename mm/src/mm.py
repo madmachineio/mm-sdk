@@ -156,7 +156,7 @@ def main():
     get_parser.set_defaults(func = get_info)
 
     args = parser.parse_args()
-    if vars(args).get('version') is not None:
+    if vars(args).get('version'):
         print(VERSION)
         sys.exit(0)
 
