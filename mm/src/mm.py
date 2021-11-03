@@ -2,6 +2,7 @@ import os, sys, platform, argparse
 from pathlib import Path
 import log, util, spm, mmp, download
 
+VERSION = '0.5.0'
 PROJECT_PATH = ''
 
 def init_project(args):
@@ -125,6 +126,8 @@ def main():
     global PROJECT_PATH
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--version', action = 'store_true', help = "Show the MadMachine SDK version")
+
     subparsers = parser.add_subparsers()
 
     init_parser = subparsers.add_parser('init', help = 'Initiaize a new project')
@@ -153,6 +156,10 @@ def main():
     get_parser.set_defaults(func = get_info)
 
     args = parser.parse_args()
+    if vars(args).get('version') is not None:
+        print(VERSION)
+        sys.exit(0)
+
     if vars(args).get('func') is None:
         log.die('subcommand is required, use \'mm --help\' to get more information')
 
