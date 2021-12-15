@@ -1,4 +1,4 @@
-import os, sys, platform, argparse
+import os, sys, platform, argparse, shutil
 from pathlib import Path
 import log, util, spm, mmp, download
 
@@ -93,6 +93,46 @@ def download_project(args):
     log.inf('Done!')
 
 
+def ci_build(args):
+    spm.initialize()
+    p_name = spm.get_project_name()
+    p_type = spm.get_project_type()
+
+    if p_type == 'executable':
+        boards = ['SwiftIOFeather', 'SwiftIOBoard']
+    else:
+        boards = ['']
+
+    triples = ['thumbv7em-unknown-none-eabi', 'thumbv7em-unknown-none-eabihf']
+
+    for board in boards:
+        for triple in triples:
+            log.inf(triple)
+            #(PROJECT_PATH / '.build').unlink(missing_ok=True)
+            if (PROJECT_PATH / '.build').exists():
+                shutil.rmtree((PROJECT_PATH / '.build'))
+            content = mmp.init_manifest(board=board, p_type=p_type, triple=triple)
+            mmp.initialize(content)
+            js_data = mmp.get_destination(p_type=p_type)
+            (PROJECT_PATH / '.build').mkdir(exist_ok=True)
+            destination = PROJECT_PATH / '.build/destination.json'
+            destination.write_text(js_data, encoding='UTF-8')
+
+            spm.build(destination=destination, p_type=p_type)
+
+            path = PROJECT_PATH / '.build' / triple / 'release'
+
+            if p_type == 'executable' and (path / p_name).exists():
+                log.inf(board)
+                mmp.create_binary(path=path, name=p_name)
+                source = path / mmp.get_board_info('target_file')
+                target = PROJECT_PATH / triple / board / p_name
+                target.mkdir(parents=True, exist_ok=True)
+                shutil.copy(source, target)
+    
+    log.inf('Done!')
+
+
 def clean_project(args):
     mmp.clean(p_path=PROJECT_PATH)
     if args.deep:
@@ -119,8 +159,8 @@ def get_info(args):
         if not spm_manifest.is_file():
             log.die('Package.swift is required to get project name')
         spm.initialize()
-        project_name = spm.get_project_name()
-        log.inf(project_name)
+        p_name = spm.get_project_name()
+        log.inf(p_name)
 
 def main():
     global PROJECT_PATH
@@ -140,6 +180,10 @@ def main():
     build_parser = subparsers.add_parser('build', help = 'Build a project')
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     build_parser.set_defaults(func = build_project)
+
+    cibuild_parser = subparsers.add_parser('cibuild', help = 'Build a project with CI')
+    cibuild_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    cibuild_parser.set_defaults(func = ci_build)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
