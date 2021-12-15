@@ -46,11 +46,11 @@ def initialize(content):
     
 
 
-def init_manifest(board, p_type):    
+def init_manifest(board, p_type, triple='thumbv7em-unknown-none-eabi'):    
     if p_type == 'library':
         board = ''
 
-    content = DEFAULT_MMP_MANIFEST.format(name=board, triple='thumbv7em-unknown-none-eabi')
+    content = DEFAULT_MMP_MANIFEST.format(name=board, triple=triple)
     return content
 
 
@@ -115,6 +115,8 @@ def get_c_arch():
 def get_c_predefined():
     flags = [
         '-nostdinc',
+        '--rtlib=libgcc',
+        '-Wno-unused-command-line-argument',
         '-D__MADMACHINE__',
         '-D_POSIX_THREADS',
         '-D_POSIX_READER_WRITER_LOCKS',
@@ -132,12 +134,20 @@ def get_gcc_include_path():
         sub_path = '/v7e-m/nofp'
 
     flags = [
-        'usr/arm-none-eabi/include/c++/10.3.1',
-        'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
-        'usr/arm-none-eabi/include/c++/10.3.1/backward',
+        #newlib header
+        'usr/arm-none-eabi/include',
+
+        #libstdc++ header
+        #'usr/arm-none-eabi/include/c++/10.3.1',
+        #'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
+        #'usr/arm-none-eabi/include/c++/10.3.1/backward',
+
+        #libgcc header
         'usr/lib/gcc/arm-none-eabi/10.3.1/include',
         'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
-        'usr/arm-none-eabi/include'
+
+        #clang compiler-rt header
+        #'usr/lib/clang/10.0.0/include',
     ]
 
     flags = ['-I' + str(sdk_path / item) for item in flags] 
@@ -153,11 +163,20 @@ def get_clang_include_path():
         sub_path = '/v7e-m/nofp'
 
     flags = [
-        'usr/arm-none-eabi/include/c++/10.3.1',
-        'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
-        'usr/arm-none-eabi/include/c++/10.3.1/backward',
-        'usr/lib/swift/clang/include',
-        'usr/arm-none-eabi/include'
+        #newlib header
+        'usr/arm-none-eabi/include',
+
+        #libstdc++ header
+        #'usr/arm-none-eabi/include/c++/10.3.1',
+        #'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
+        #'usr/arm-none-eabi/include/c++/10.3.1/backward',
+
+        #libgcc header
+        #'usr/lib/gcc/arm-none-eabi/10.3.1/include',
+        #'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
+
+        #clang compiler-rt header
+        'usr/lib/clang/10.0.0/include',
     ]
 
     flags = ['-I' + str(sdk_path / item) for item in flags]
@@ -169,6 +188,8 @@ def get_cc_flags(p_type):
 
     flags += get_c_arch()
     flags += get_c_predefined()
+
+    #TODO, arm-2d needs the clang headers to be compiled!
     #flags += get_gcc_include_path()
     flags += get_clang_include_path()
     
@@ -223,6 +244,35 @@ def get_swift_predefined(p_type):
     elif p_type == 'executable':
         log.wrn('board is missing in Package.mmp')
 
+    return flags
+
+def get_swift_gcc_header():
+    #Used for newlib constants like errno.h
+
+    sdk_path = util.get_sdk_path()
+
+    flags = [
+        #newlib header
+        'usr/arm-none-eabi/include',
+
+        #libstdc++ header
+        #'usr/arm-none-eabi/include/c++/10.3.1',
+        #'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
+        #'usr/arm-none-eabi/include/c++/10.3.1/backward',
+
+        #libgcc header
+        'usr/lib/gcc/arm-none-eabi/10.3.1/include',
+        'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
+
+        #clang compiler-rt header
+        #'usr/lib/clang/10.0.0/include',
+    ]
+
+    flags = ['-I ' + str(sdk_path / item) for item in flags]
+    flags = (' '.join(flags)).split(' ')
+
+    flags = ['-Xcc ' + item for item in flags]
+    flags = (' '.join(flags)).split(' ')
     return flags
 
 def get_swift_linker_config():
@@ -290,23 +340,26 @@ def get_swift_board_library():
     libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.a'))
 
     flags = ['-Xlinker ' + str(item) for item in libraries]
-    flags += [
-        '-lswiftCore'
-    ]
-
     flags = (' '.join(flags)).split(' ')
+
+    #flags += ['-lswiftCore']
 
     return flags
 
 
 def get_swift_gcc_library():
-    flags = [
+    libraries = [
+        '--start-group',
         '-lstdc++',
         '-lc',
         '-lg',
         '-lm',
-        '-lgcc'
+        '-lgcc',
+        '--end-group'
     ]
+
+    flags = ['-Xlinker ' + str(item) for item in libraries]
+    flags = (' '.join(flags)).split(' ')
 
     return flags
 
@@ -315,6 +368,7 @@ def get_swiftc_flags(p_type):
 
     flags += get_swift_arch()
     flags += get_swift_predefined(p_type)
+    flags += get_swift_gcc_header()
     
     if p_type == 'executable':
         flags += get_swift_linker_config()
@@ -322,7 +376,8 @@ def get_swiftc_flags(p_type):
         flags += get_swift_link_search_path()
         flags += get_swift_board_library()
         flags += get_swift_gcc_library()
-    
+
+
     return flags
 
 def get_destination(p_type):
