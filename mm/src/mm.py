@@ -2,7 +2,7 @@ import os, sys, platform, argparse, shutil
 from pathlib import Path
 import log, util, spm, mmp, download
 
-VERSION = '0.5.0'
+VERSION = '0.6.0'
 PROJECT_PATH = ''
 
 def init_project(args):
