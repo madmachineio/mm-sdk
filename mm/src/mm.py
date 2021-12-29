@@ -157,7 +157,7 @@ def host_test(args):
     
     spm.edit_package('SwiftIO', revision)
     spm.host_test()
-    log.inf('Done!')
+    log.inf('OK!')
 
 
 def clean_project(args):
