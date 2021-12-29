@@ -7,6 +7,7 @@ SDK_PATH = ''
 tool_set = {
     'swift-build': 'usr/bin/swift-build',
     'swift-package': 'usr/bin/swift-package',
+    'swift-test': 'usr/bin/swift-test',
     'objcopy': 'usr/bin/arm-none-eabi-objcopy'
 }
 
@@ -70,3 +71,8 @@ def run_command(flags):
         log.die(cmd_err.decode('utf-8'), prefix=False)
     
     return cmd_out.decode('utf-8')
+
+
+
+
+

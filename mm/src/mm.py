@@ -133,6 +133,33 @@ def ci_build(args):
     log.inf('Done!')
 
 
+def host_test(args):
+    packages_dir = PROJECT_PATH / 'Packages'
+    build_dir = PROJECT_PATH / '.build'
+    resolved_file = PROJECT_PATH / 'Package.resolved'
+
+    if packages_dir.exists():
+        shutil.rmtree(packages_dir)
+
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+
+    if resolved_file.exists():
+        resolved_file.unlink()
+    
+    revision = spm.get_mock_revision()
+
+    # if build_dir.exists():
+    #     shutil.rmtree(build_dir)
+
+    # if resolved_file.exists():
+    #     resolved_file.unlink()
+    
+    spm.edit_package('SwiftIO', revision)
+    spm.host_test()
+    log.inf('Done!')
+
+
 def clean_project(args):
     mmp.clean(p_path=PROJECT_PATH)
     if args.deep:
@@ -181,10 +208,6 @@ def main():
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     build_parser.set_defaults(func = build_project)
 
-    cibuild_parser = subparsers.add_parser('cibuild', help = 'Build a project with CI')
-    cibuild_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
-    cibuild_parser.set_defaults(func = ci_build)
-
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_project)
@@ -198,6 +221,14 @@ def main():
     get_parser.add_argument('--info', type = str, choices =['name', 'usb'], help = 'Information type')
     get_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     get_parser.set_defaults(func = get_info)
+
+    ci_build_parser = subparsers.add_parser('ci-build', help = 'CI Build')
+    ci_build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    ci_build_parser.set_defaults(func = ci_build)
+
+    host_test_parser = subparsers.add_parser('host-test', help = 'Test a project in host with SwiftIO mock')
+    host_test_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    host_test_parser.set_defaults(func = host_test)
 
     args = parser.parse_args()
     if vars(args).get('version'):
