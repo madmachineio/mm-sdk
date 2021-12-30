@@ -8,7 +8,8 @@ tool_set = {
     'swift-build': 'usr/bin/swift-build',
     'swift-package': 'usr/bin/swift-package',
     'swift-test': 'usr/bin/swift-test',
-    'objcopy': 'usr/bin/arm-none-eabi-objcopy'
+    'objcopy': 'usr/bin/arm-none-eabi-objcopy',
+    'llvm-cov': 'usr/bin/llvm-cov'
 }
 
 def quote_string(path):

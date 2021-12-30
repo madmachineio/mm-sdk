@@ -194,8 +194,33 @@ def edit_package(package, revision):
 
 def host_test():
     flags = [
-        util.get_tool('swift-test')
+        util.get_tool('swift-test'),
+        '--enable-code-coverage'
     ]
 
-    if(util.command(flags)):
-        log.die('host swift test failed')
+    if util.command(flags):
+        log.die('host mock test failed')
+
+
+def get_codecov_path():
+    flags = [
+        util.get_tool('swift-test'),
+        '--show-codecov-path'
+    ]
+
+    path = util.run_command(flags).strip()
+    return Path(path).parent
+
+
+def generate_code_report(test_path, prof_path):
+    flags = [
+        util.get_tool('llvm-cov'),
+        'export -format=lcov',
+        test_path,
+        '-instr-profile',
+        prof_path,
+        '> info.lcov'
+    ]
+
+    if util.command(flags):
+        log.die('generate codecov failed')

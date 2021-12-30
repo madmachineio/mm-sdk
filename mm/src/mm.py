@@ -137,6 +137,11 @@ def host_test(args):
     packages_dir = PROJECT_PATH / 'Packages'
     build_dir = PROJECT_PATH / '.build'
     resolved_file = PROJECT_PATH / 'Package.resolved'
+    report_file = PROJECT_PATH / 'info.lcov'
+
+    spm.initialize()
+    p_name = spm.get_project_name()
+    # p_type = spm.get_project_type()
 
     if packages_dir.exists():
         shutil.rmtree(packages_dir)
@@ -147,16 +152,29 @@ def host_test(args):
     if resolved_file.exists():
         resolved_file.unlink()
     
-    revision = spm.get_mock_revision()
-
-    # if build_dir.exists():
-    #     shutil.rmtree(build_dir)
-
-    # if resolved_file.exists():
-    #     resolved_file.unlink()
+    if report_file.exists():
+        report_file.unlink()
     
+    revision = spm.get_mock_revision()
+   
     spm.edit_package('SwiftIO', revision)
     spm.host_test()
+    codecov_path = spm.get_codecov_path()
+
+    test_path = str(codecov_path.parent / (p_name + 'PackageTests.xctest'))
+    prof_path = str(codecov_path / 'default.profdata')
+
+    spm.generate_code_report(test_path, prof_path)
+
+    if packages_dir.exists():
+        shutil.rmtree(packages_dir)
+
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+
+    if resolved_file.exists():
+        resolved_file.unlink()
+
     log.inf('OK!')
 
 
