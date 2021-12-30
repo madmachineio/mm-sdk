@@ -139,6 +139,8 @@ def host_test(args):
     resolved_file = PROJECT_PATH / 'Package.resolved'
     report_file = PROJECT_PATH / 'info.lcov'
 
+    system = platform.system()
+
     spm.initialize()
     p_name = spm.get_project_name()
     # p_type = spm.get_project_type()
@@ -161,10 +163,15 @@ def host_test(args):
     spm.host_test()
     codecov_path = spm.get_codecov_path()
 
-    test_path = str(codecov_path.parent / (p_name + 'PackageTests.xctest'))
+    test_result = ''
+    if system != 'Darwin':
+        test_result = str(codecov_path.parent / (p_name + 'PackageTests.xctest'))
+    else:
+        test_result = str(codecov_path.parent / (p_name + 'PackageTests.xctest') / 'Contents' / 'MacOS' / (p_name + 'PackageTests'))
+
     prof_path = str(codecov_path / 'default.profdata')
 
-    spm.generate_code_report(test_path, prof_path)
+    spm.generate_code_report(test_result, prof_path)
 
     if packages_dir.exists():
         shutil.rmtree(packages_dir)
