@@ -311,7 +311,7 @@ def get_swift_linker_script():
 
     flags = [
         '-T',
-        str(sdk_path / 'Boards' / board / 'linker/ram.ld')
+        str(sdk_path / 'Boards' / board / 'linker/sdram.ld')
     ]
     flags = ['-Xlinker ' + item for item in flags]
     flags = (' '.join(flags)).split(' ')

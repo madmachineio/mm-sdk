@@ -2,7 +2,7 @@ import json, shutil
 from pathlib import Path
 import util, log
 
-DEFAULT_LIB_MANIFEST = """// swift-tools-version:5.3
+DEFAULT_LIB_MANIFEST = """// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 import PackageDescription
 let package = Package(
@@ -30,7 +30,7 @@ let package = Package(
 )
 """
 
-DEFAULT_EXE_MANIFEST = """// swift-tools-version:5.3
+DEFAULT_EXE_MANIFEST = """// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 import PackageDescription
 let package = Package(
@@ -44,7 +44,7 @@ let package = Package(
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
-        .target(
+        .executableTarget(
             name: "{name}",
             dependencies: [
                 "SwiftIO",
