@@ -102,11 +102,13 @@ def get_c_arch():
     if triple == 'thumbv7em-unknown-none-eabihf':
         flags = [
             '-mcpu=cortex-m7',
+            '-mhard-float',
             '-mfloat-abi=hard'
         ]
     else:
         flags = [
             '-mcpu=cortex-m7+nofp',
+            '-msoft-float',
             '-mfloat-abi=soft'
         ]
     
@@ -147,7 +149,7 @@ def get_gcc_include_path():
         'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        #'usr/lib/clang/10.0.0/include',
+        #'usr/lib/clang/13.0.0/include',
     ]
 
     flags = ['-I' + str(sdk_path / item) for item in flags] 
@@ -176,7 +178,7 @@ def get_clang_include_path():
         #'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        'usr/lib/clang/10.0.0/include',
+        'usr/lib/clang/13.0.0/include',
     ]
 
     flags = ['-I' + str(sdk_path / item) for item in flags]
@@ -190,8 +192,8 @@ def get_cc_flags(p_type):
     flags += get_c_predefined()
 
     #TODO, arm-2d needs the clang headers to be compiled!
-    #flags += get_gcc_include_path()
-    flags += get_clang_include_path()
+    flags += get_gcc_include_path()
+    #flags += get_clang_include_path()
     
     return flags
 
@@ -206,8 +208,10 @@ def get_swift_arch():
             'thumbv7em-unknown-none-eabihf',
             '-target-cpu',
             'cortex-m7',
-            '-float-abi',
-            'hard'
+            '-Xcc',
+            '-mhard-float',
+            '-Xcc',
+            '-mfloat-abi=hard'
         ]
     else:
         flags = [
@@ -215,8 +219,10 @@ def get_swift_arch():
             'thumbv7em-unknown-none-eabi',
             '-target-cpu',
             'cortex-m7+nofp',
-            '-float-abi',
-            'soft'
+            '-Xcc',
+            '-msoft-float',
+            '-Xcc',
+            '-mfloat-abi=soft'
         ]
     
     return flags
@@ -237,6 +243,12 @@ def get_swift_predefined(p_type):
         '-Xcc',
         '-D_UNIX98_THREAD_MUTEX_ATTRIBUTES'
     ]
+
+    if p_type == 'executable':
+        flags.append('-static-executable')
+    else:
+        flags.append('-static')
+
 
     board = get_board_name()
     if len(board) != 0:
@@ -369,7 +381,9 @@ def get_swiftc_flags(p_type):
     flags += get_swift_arch()
     flags += get_swift_predefined(p_type)
     flags += get_swift_gcc_header()
-    
+
+    # Need to add '-nostdlib++' in static-executable-args.lnk
+    # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
     if p_type == 'executable':
         flags += get_swift_linker_config()
         flags += get_swift_linker_script()
