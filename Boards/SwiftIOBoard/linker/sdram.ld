@@ -1,6 +1,6 @@
 MEMORY
      {
-        OCRAM (wx) : ORIGIN = 538968064, LENGTH = 262144
+        OCRAM (wx) : ORIGIN = 538968064, LENGTH = 786432
      }
  OUTPUT_FORMAT("elf32-littlearm")
 _region_min_align = 4;
@@ -187,6 +187,25 @@ _vector_end = .;
   KEEP(*(SORT(.__device_handles_pass2*)));
   __device_handles_end = .;
  } > SRAM
+ tdata :
+ {
+  *(.tdata .tdata.* .gnu.linkonce.td.*);
+ } > SRAM
+ tbss :
+ {
+  *(.tbss .tbss.* .gnu.linkonce.tb.* .tcommon);
+ } > SRAM
+ PROVIDE(__tdata_start = ADDR(tdata));
+ PROVIDE(__tdata_size = SIZEOF(tdata));
+ PROVIDE(__tdata_end = __tdata_start + __tdata_size);
+ PROVIDE(__tdata_align = ALIGNOF(tdata));
+ PROVIDE(__tbss_start = ADDR(tbss));
+ PROVIDE(__tbss_size = SIZEOF(tbss));
+ PROVIDE(__tbss_end = __tbss_start + __tbss_size);
+ PROVIDE(__tbss_align = ALIGNOF(tbss));
+ PROVIDE(__tls_start = __tdata_start);
+ PROVIDE(__tls_end = __tbss_end);
+ PROVIDE(__tls_size = __tbss_end - __tdata_start);
     rodata :
  {
  *(.rodata)
@@ -201,9 +220,7 @@ _vector_end = .;
  __rodata_region_end = .;
  . = ALIGN(_region_min_align);
  __rom_region_end = .;
-
-
-
+   
  .got :
  {
    . = ALIGN(4);
@@ -269,16 +286,17 @@ _vector_end = .;
    __start_swift5_capture = .;
    *(swift5_capture)
    __stop_swift5_capture = .;
+
+   . = ALIGN(4);
+   __start_swift5_mpenum = .;
+   *(swift5_capture)
+   __stop_swift5_mpenum = .;
+
+   . = ALIGN(4);
+   __start_swift5_accessible_functions = .;
+   *(swift5_capture)
+   __stop_swift5_accessible_functions = .;
  } > SRAM
- 
-
- _image_rodata_end = .;
- . = ALIGN(_region_min_align);
- _image_rom_end = .;
-
-
-
-
    
  . = 0x80000000;
  . = ALIGN(_region_min_align);

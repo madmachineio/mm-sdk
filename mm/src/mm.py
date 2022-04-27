@@ -2,7 +2,7 @@ import os, sys, platform, argparse, shutil
 from pathlib import Path
 import log, util, spm, mmp, download
 
-VERSION = '0.6.0'
+VERSION = '0.7.0'
 PROJECT_PATH = ''
 
 def init_project(args):
@@ -10,7 +10,7 @@ def init_project(args):
     spm_manifest = Path(PROJECT_PATH / 'Package.swift')
 
     if mmp_manifest.is_file():
-        log.die('Package.mmp already exists in this directory')
+        log.die('Package.mmp already exists in this directory, command ignored')
 
     board_name = args.board
     if not spm_manifest.is_file():
@@ -24,7 +24,7 @@ def init_project(args):
         content = spm.init_manifest(p_name=init_name, p_type=init_type)
         spm_manifest.write_text(content, encoding='UTF-8')
     else:
-        log.wrn('Package.swift already exists, ignoring specified project type and project name')
+        log.wrn('Package.swift already exists, project type and project name are ignored')
         spm.initialize()
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
