@@ -1,7 +1,8 @@
-import json
+import json, shutil
+from pathlib import Path
 import util, log
 
-DEFAULT_LIB_MANIFEST = """// swift-tools-version:5.3
+DEFAULT_LIB_MANIFEST = """// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 import PackageDescription
 let package = Package(
@@ -29,7 +30,7 @@ let package = Package(
 )
 """
 
-DEFAULT_EXE_MANIFEST = """// swift-tools-version:5.3
+DEFAULT_EXE_MANIFEST = """// swift-tools-version:5.7
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 import PackageDescription
 let package = Package(
@@ -43,7 +44,7 @@ let package = Package(
     targets: [
         // Targets are the basic building blocks of a package. A target can define a module or a test suite.
         // Targets can depend on other targets in this package, and on products in packages this package depends on.
-        .target(
+        .executableTarget(
             name: "{name}",
             dependencies: [
                 "SwiftIO",
@@ -58,17 +59,18 @@ let package = Package(
 )
 """
 
-JSON_DATA = ''
+PKG_DESCRIBE_JSON = ''
+
 
 def initialize():
-    global JSON_DATA
+    global PKG_DESCRIBE_JSON
 
     flags = [
         util.get_tool('swift-package'),
         'describe',
         '--type json'
     ]
-    JSON_DATA = util.run_command(flags)
+    PKG_DESCRIBE_JSON = util.run_command(flags) 
 
 
 def init_manifest(p_name, p_type):
@@ -91,17 +93,17 @@ def init_manifest(p_name, p_type):
 
 
 def get_project_name():
-    name = json.loads(JSON_DATA).get('name')
+    name = json.loads(PKG_DESCRIBE_JSON).get('name')
 
     return name
 
 
 def get_project_type():
-    project_name = json.loads(JSON_DATA).get('name')
+    project_name = json.loads(PKG_DESCRIBE_JSON).get('name')
 
     project_tpye = None
 
-    products = json.loads(JSON_DATA).get('products')
+    products = json.loads(PKG_DESCRIBE_JSON).get('products')
     for product in products:
         if product.get('name') == project_name:
             product_tpye = product.get('type')
@@ -113,7 +115,7 @@ def get_project_type():
                 break
 
     if project_tpye is None:
-        targets = json.loads(JSON_DATA).get('targets')
+        targets = json.loads(PKG_DESCRIBE_JSON).get('targets')
         for target in targets:
             if target.get('name') == project_name:
                 project_tpye = target.get('type')
@@ -123,6 +125,7 @@ def get_project_type():
         project_tpye = 'library'
     
     return project_tpye
+
 
 def build(destination, p_type):
     flags = [
@@ -140,6 +143,7 @@ def build(destination, p_type):
     if util.command(flags):
         log.die('compile failed')
 
+
 def clean():
     flags = [
         util.get_tool('swift-package'),
@@ -148,3 +152,75 @@ def clean():
     ret = util.command(flags)
 
     return ret
+
+
+def get_mock_revision():
+    flags = [
+        'git clone',
+        '-b mock',
+        'https://github.com/madmachineio/SwiftIO.git'
+    ]
+    if util.command(flags):
+        log.die('Git clone SwiftIO mock branch failed')
+
+    flags = [
+        'git',
+        '--git-dir=./SwiftIO/.git',
+        '--work-tree=./SwiftIO',
+        'rev-parse',
+        'mock'
+    ]
+    revision = util.run_command(flags).strip()
+
+    repo = Path('./SwiftIO')
+    if repo.exists():
+        shutil.rmtree(repo)
+
+    return revision
+
+
+def edit_package(package, revision):
+    flags = [
+        util.get_tool('swift-package'),
+        'edit',
+        package,
+        '--revision',
+        revision
+    ]
+
+    if util.command(flags):
+        log.die('Checkout to mock revision failed')
+
+
+def host_test():
+    flags = [
+        util.get_tool('swift-test'),
+        '--enable-code-coverage'
+    ]
+
+    if util.command(flags):
+        log.die('host mock test failed')
+
+
+def get_codecov_path():
+    flags = [
+        util.get_tool('swift-test'),
+        '--show-codecov-path'
+    ]
+
+    path = util.run_command(flags).strip()
+    return Path(path).parent
+
+
+def generate_code_report(test_path, prof_path):
+    flags = [
+        util.get_tool('llvm-cov'),
+        'export -format=lcov',
+        test_path,
+        '-instr-profile',
+        prof_path,
+        '> info.lcov'
+    ]
+
+    if util.command(flags):
+        log.die('generate codecov failed')

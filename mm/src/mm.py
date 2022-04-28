@@ -2,7 +2,7 @@ import os, sys, platform, argparse, shutil
 from pathlib import Path
 import log, util, spm, mmp, download
 
-VERSION = '0.5.0'
+VERSION = '0.7.0'
 PROJECT_PATH = ''
 
 def init_project(args):
@@ -10,7 +10,7 @@ def init_project(args):
     spm_manifest = Path(PROJECT_PATH / 'Package.swift')
 
     if mmp_manifest.is_file():
-        log.die('Package.mmp already exists in this directory')
+        log.die('Package.mmp already exists in this directory, command ignored')
 
     board_name = args.board
     if not spm_manifest.is_file():
@@ -24,7 +24,7 @@ def init_project(args):
         content = spm.init_manifest(p_name=init_name, p_type=init_type)
         spm_manifest.write_text(content, encoding='UTF-8')
     else:
-        log.wrn('Package.swift already exists, ignoring specified project type and project name')
+        log.wrn('Package.swift already exists, project type and project name are ignored')
         spm.initialize()
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
@@ -133,6 +133,58 @@ def ci_build(args):
     log.inf('Done!')
 
 
+def host_test(args):
+    packages_dir = PROJECT_PATH / 'Packages'
+    build_dir = PROJECT_PATH / '.build'
+    resolved_file = PROJECT_PATH / 'Package.resolved'
+    report_file = PROJECT_PATH / 'info.lcov'
+
+    system = platform.system()
+
+    spm.initialize()
+    p_name = spm.get_project_name()
+    # p_type = spm.get_project_type()
+
+    if packages_dir.exists():
+        shutil.rmtree(packages_dir)
+
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+
+    if resolved_file.exists():
+        resolved_file.unlink()
+    
+    if report_file.exists():
+        report_file.unlink()
+    
+    revision = spm.get_mock_revision()
+   
+    spm.edit_package('SwiftIO', revision)
+    spm.host_test()
+    codecov_path = spm.get_codecov_path()
+
+    test_result = ''
+    if system != 'Darwin':
+        test_result = str(codecov_path.parent / (p_name + 'PackageTests.xctest'))
+    else:
+        test_result = str(codecov_path.parent / (p_name + 'PackageTests.xctest') / 'Contents' / 'MacOS' / (p_name + 'PackageTests'))
+
+    prof_path = str(codecov_path / 'default.profdata')
+
+    spm.generate_code_report(test_result, prof_path)
+
+    if packages_dir.exists():
+        shutil.rmtree(packages_dir)
+
+    if build_dir.exists():
+        shutil.rmtree(build_dir)
+
+    if resolved_file.exists():
+        resolved_file.unlink()
+
+    log.inf('OK!')
+
+
 def clean_project(args):
     mmp.clean(p_path=PROJECT_PATH)
     if args.deep:
@@ -181,10 +233,6 @@ def main():
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     build_parser.set_defaults(func = build_project)
 
-    cibuild_parser = subparsers.add_parser('cibuild', help = 'Build a project with CI')
-    cibuild_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
-    cibuild_parser.set_defaults(func = ci_build)
-
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_project)
@@ -198,6 +246,14 @@ def main():
     get_parser.add_argument('--info', type = str, choices =['name', 'usb'], help = 'Information type')
     get_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     get_parser.set_defaults(func = get_info)
+
+    ci_build_parser = subparsers.add_parser('ci-build', help = 'CI Build')
+    ci_build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    ci_build_parser.set_defaults(func = ci_build)
+
+    host_test_parser = subparsers.add_parser('host-test', help = 'Test a project in host with SwiftIO mock')
+    host_test_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    host_test_parser.set_defaults(func = host_test)
 
     args = parser.parse_args()
     if vars(args).get('version'):
