@@ -1,8 +1,7 @@
 import os, sys, platform, argparse, shutil
 from pathlib import Path
-import log, util, spm, mmp, download
+import log, util, spm, mmp, download, version
 
-VERSION = '0.7.0'
 PROJECT_PATH = ''
 
 def init_project(args):
@@ -10,7 +9,7 @@ def init_project(args):
     spm_manifest = Path(PROJECT_PATH / 'Package.swift')
 
     if mmp_manifest.is_file():
-        log.die('Package.mmp already exists in this directory, command ignored')
+        log.die('Package.mmp already exists, command ignored')
 
     board_name = args.board
     if not spm_manifest.is_file():
@@ -24,7 +23,7 @@ def init_project(args):
         content = spm.init_manifest(p_name=init_name, p_type=init_type)
         spm_manifest.write_text(content, encoding='UTF-8')
     else:
-        log.wrn('Package.swift already exists, project type and project name are ignored')
+        log.wrn('Package.swift already exists, project type and name are ignored')
         spm.initialize()
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
@@ -32,7 +31,7 @@ def init_project(args):
             log.die('board name is required to initialize an executable')
 
     content = mmp.init_manifest(board=board_name, p_type=init_type)
-    log.inf('Creating Package.mmp', level=log.VERBOSE_VERY)
+    log.inf('Creating Package.mmp')
     mmp_manifest.write_text(content, encoding='UTF-8')
 
 
@@ -107,7 +106,7 @@ def ci_build(args):
 
     for board in boards:
         for triple in triples:
-            log.inf(triple)
+            log.inf('Building for ' + triple)
             #(PROJECT_PATH / '.build').unlink(missing_ok=True)
             if (PROJECT_PATH / '.build').exists():
                 shutil.rmtree((PROJECT_PATH / '.build'))
@@ -123,7 +122,7 @@ def ci_build(args):
             path = PROJECT_PATH / '.build' / triple / 'release'
 
             if p_type == 'executable' and (path / p_name).exists():
-                log.inf(board)
+                log.inf('Building for ' + board)
                 mmp.create_binary(path=path, name=p_name)
                 source = path / mmp.get_board_info('target_file')
                 target = PROJECT_PATH / triple / board / p_name
@@ -257,14 +256,14 @@ def main():
 
     args = parser.parse_args()
     if vars(args).get('version'):
-        print(VERSION)
+        print(version.__VERSION__)
         sys.exit(0)
 
     if vars(args).get('func') is None:
         log.die('subcommand is required, use \'mm --help\' to get more information')
 
     if args.verbose:
-        log.set_verbosity(log.VERBOSE_VERY)
+        log.set_verbosity(log.VERBOSE_DBG)
 
     sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
     util.set_sdk_path(sdk_path)

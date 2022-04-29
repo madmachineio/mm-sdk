@@ -62,7 +62,7 @@ def darwin_eject():
     log.inf('Ejecting SD card...')
 
     if util.command(flags):
-        log.die('Eject SD card failed!')
+        log.die('eject SD card failed!')
 
 
 def darwin_download(source):

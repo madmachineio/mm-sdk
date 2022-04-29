@@ -454,7 +454,7 @@ def create_binary(path, name):
     mask = (1 << 8) - 1
     list_dec = [(value >> k) & mask for k in range(0, 32, 8)]
 
-    log.inf('Creating ' + target_file + '...')
+    log.inf('Creating ' + str(target_path) + '...')
     with open(target_path, 'wb') as file:
         file.write(data)
         for number in list_dec:

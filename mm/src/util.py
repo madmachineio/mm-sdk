@@ -2,6 +2,9 @@ import subprocess
 from pathlib import Path
 import log
 
+
+
+
 SDK_PATH = ''
 
 tool_set = {
@@ -44,10 +47,10 @@ def command(flags):
     for item in flags:
         cmd += item + ' '
 
-    if log.VERBOSE > log.VERBOSE_NORMAL:
+    if log.VERBOSE > log.VERBOSE_INF:
         cmd += '-v'
 
-    log.inf(cmd, level = log.VERBOSE_VERY)
+    log.inf(cmd, prefix=False, level=log.VERBOSE_DBG)
 
     p = subprocess.Popen(cmd, shell=True)
     ret = p.wait()
@@ -60,10 +63,10 @@ def run_command(flags):
     for item in flags:
         cmd += item + ' '
 
-    #if log.VERBOSE > log.VERBOSE_NORMAL:
+    #if log.VERBOSE > log.VERBOSE_INF:
     #    cmd += '-v'
 
-    log.inf(cmd, level=log.VERBOSE_VERY)
+    log.inf(cmd, prefix=False, level=log.VERBOSE_DBG)
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     ret = p.wait()
