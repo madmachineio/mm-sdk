@@ -7,12 +7,15 @@ import util, log
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
                 'serial_number': '012345671FC90093',
-                'target_file': 'swiftio.bin'}
+                'target_file': 'swiftio.bin',
+                'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
 SWIFTIO_FEATHER = {'vid': '0x1fc9',
                     'pid': '0x0095',
                     'serial_number': '012345671FC90095',
-                    'target_file': 'feather.bin'}
+                    'target_file': 'feather.bin',
+                    'usb2serial_device': 'USB Single Serial'}
+                    # CP2102N
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
