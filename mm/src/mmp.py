@@ -1,5 +1,4 @@
 import toml, json
-import struct
 from zlib import crc32
 from pathlib import Path
 import util, log
@@ -7,13 +6,13 @@ import util, log
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
                 'serial_number': '012345671FC90093',
-                'target_file': 'swiftio.bin',
+                'sd_image_name': 'swiftio.img',
                 'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
 SWIFTIO_FEATHER = {'vid': '0x1fc9',
                     'pid': '0x0095',
                     'serial_number': '012345671FC90095',
-                    'target_file': 'feather.bin',
+                    'sd_image_name': 'feather.img',
                     'usb2serial_device': 'USB Single Serial'}
                     # CP2102N
 
@@ -424,7 +423,6 @@ def clean(p_path):
     for file in files:
         file.unlink()
 
-
 def create_binary(path, name):
     elf_path = path / name
     bin_path = path / (name + '.bin')
@@ -445,21 +443,44 @@ def create_binary(path, name):
         util.quote_string(bin_path)
     ]
     
-    log.inf('Creating binary...')
     if util.command(flags):
         log.die('creating binary failed!')
-    
-    target_file = get_board_info(info='target_file')
-    target_path = path / target_file
+    else:
+        return bin_path
 
-    data = bin_path.read_bytes()
-    value = crc32(data)
-    mask = (1 << 8) - 1
-    list_dec = [(value >> k) & mask for k in range(0, 32, 8)]
 
-    log.inf('Creating ' + str(target_path) + '...')
-    with open(target_path, 'wb') as file:
-        file.write(data)
-        for number in list_dec:
-            byte = struct.pack('B', number)
-            file.write(byte)
+
+
+IMAGE_HEADER_CAPACITY = 1024 * 4
+
+IMAGE_START_OFFSET = IMAGE_HEADER_CAPACITY  # Default 4k offset
+IMAGE_LOAD_ADDRESS = 0x80000000             # SDRAM start address
+IMAGE_TYPE = 0x10                           # User app 0
+IMAGE_VERIFY_TYPE = 0x01                     # CRC32
+IMAGE_VERIFY_CAPACITY = 64                  # 64 bytes capacity
+
+def create_image(path, name):
+    image_name = get_board_info(info='sd_image_name')
+    image_path = path / image_name
+
+    log.inf('Creating image ' + image_name + '...')
+
+    bin_path = create_binary(path, name)
+    image_raw_binary = bin_path.read_bytes()
+
+    image_offset = IMAGE_START_OFFSET.to_bytes(8, byteorder='little')
+    image_size = len(image_raw_binary).to_bytes(8, byteorder='little')
+    image_load_address = IMAGE_LOAD_ADDRESS.to_bytes(8, byteorder='little')
+    image_type = IMAGE_TYPE.to_bytes(8, byteorder='little')
+    image_verify_type = IMAGE_VERIFY_TYPE.to_bytes(8, byteorder='little')
+    image_crc = crc32(image_raw_binary).to_bytes(8, byteorder='little')
+    image_crc = image_crc + bytes(IMAGE_VERIFY_CAPACITY - len(image_crc))
+
+    image_header = image_offset + image_size + image_load_address + image_type + image_verify_type + image_crc
+
+    header_crc = crc32(image_header).to_bytes(8, byteorder='little')
+    image_header = header_crc + image_header
+
+    header_block = image_header.ljust(IMAGE_HEADER_CAPACITY, b'\xff')
+
+    image_path.write_bytes(header_block + image_raw_binary)

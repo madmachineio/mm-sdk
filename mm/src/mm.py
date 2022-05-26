@@ -60,7 +60,7 @@ def build_project(args):
     path = PROJECT_PATH / '.build' / triple / 'release'
 
     if p_type == 'executable' and (path / p_name).exists():
-        mmp.create_binary(path=path, name=p_name)
+        mmp.create_image(path=path, name=p_name)
     
     log.inf('Done!')
     
@@ -82,7 +82,7 @@ def download_project(args):
     if board_name is None:
         log.die('Board name is not specified')
 
-    file_name = mmp.get_board_info('target_file')
+    file_name = mmp.get_board_info('sd_image_name')
     source = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
 
     if not source.is_file():
@@ -123,8 +123,8 @@ def ci_build(args):
 
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
-                mmp.create_binary(path=path, name=p_name)
-                source = path / mmp.get_board_info('target_file')
+                mmp.create_image(path=path, name=p_name)
+                source = path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
                 shutil.copy(source, target)

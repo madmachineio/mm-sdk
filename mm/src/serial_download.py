@@ -491,14 +491,14 @@ def test():
     sync_baud(3000000)
     sync()
 
-    send_file2mem('./build/zephyr/zephyr.bin', 0x20200000)
+    send_file2mem('/home/andy/Documents/recovery/build/zephyr/zephyr.bin', 0x20200000)
     execute(0x20200000)
 
     sleep(0.1)
     sync()
 
-    send_file2flash('./recovery-bootloader/zephyr.bin', 0x00000000, 0x60100000)
-    #send_file2sdcard('./recovery-bootloader/red_blue.bin', 'feather.bin', 0x80000000)
+    # send_file2flash('/home/andy/Documents/recovery/recovery-bootloader/zephyr.bin', 0x00000000, 0x60100000)
+    send_file2sdcard('/home/andy/Documents/recovery/recovery-bootloader/red_blue.bin', 'feather.bin', 0x80000000)
 
     reboot(0x00000000)
 
@@ -507,6 +507,6 @@ def test():
 
 
 
-log.set_verbosity(log.VERBOSE_DBG)
-test_list_serial_port()
+#log.set_verbosity(log.VERBOSE_DBG)
+#test_list_serial_port()
 test()
