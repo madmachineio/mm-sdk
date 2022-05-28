@@ -471,14 +471,14 @@ def create_image(path, name):
     image_offset = IMAGE_START_OFFSET.to_bytes(8, byteorder='little')
     image_size = len(image_raw_binary).to_bytes(8, byteorder='little')
     image_load_address = IMAGE_LOAD_ADDRESS.to_bytes(8, byteorder='little')
-    image_type = IMAGE_TYPE.to_bytes(8, byteorder='little')
-    image_verify_type = IMAGE_VERIFY_TYPE.to_bytes(8, byteorder='little')
-    image_crc = crc32(image_raw_binary).to_bytes(8, byteorder='little')
+    image_type = IMAGE_TYPE.to_bytes(4, byteorder='little')
+    image_verify_type = IMAGE_VERIFY_TYPE.to_bytes(4, byteorder='little')
+    image_crc = crc32(image_raw_binary).to_bytes(4, byteorder='little')
     image_crc = image_crc + bytes(IMAGE_VERIFY_CAPACITY - len(image_crc))
 
     image_header = image_offset + image_size + image_load_address + image_type + image_verify_type + image_crc
 
-    header_crc = crc32(image_header).to_bytes(8, byteorder='little')
+    header_crc = crc32(image_header).to_bytes(4, byteorder='little')
     image_header = header_crc + image_header
 
     header_block = image_header.ljust(IMAGE_HEADER_CAPACITY, b'\xff')
