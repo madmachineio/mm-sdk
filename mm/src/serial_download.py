@@ -252,16 +252,16 @@ def sync(try_count = 6):
 def mem_begin(target_addr, target_length):
     payload = get_uint64_big_bytes(target_addr) + get_uint32_big_bytes(target_length)
 
-    send_request(MEM_BEGIN_TAG, payload)
+    send_request(RAM_BEGIN_TAG, payload)
     response = wait_response()
-    if not response_verify(response, MEM_BEGIN_TAG):
+    if not response_verify(response, RAM_BEGIN_TAG):
         log.dbg('mem_begin failed')
 
 
 def mem_data(payload):
-    send_request(MEM_DATA_TAG, payload)
+    send_request(RAM_DATA_TAG, payload)
     response = wait_response()
-    if not response_verify(response, MEM_DATA_TAG):
+    if not response_verify(response, RAM_DATA_TAG):
         log.dbg('mem_data failed')
 
 
@@ -269,9 +269,9 @@ def mem_data(payload):
 def mem_end(bin_crc):
     payload = get_uint32_big_bytes(bin_crc)
 
-    send_request(MEM_END_TAG, payload)
+    send_request(RAM_END_TAG, payload)
     response = wait_response()
-    if not response_verify(response, MEM_END_TAG):
+    if not response_verify(response, RAM_END_TAG):
         log.dbg('mem_end failed')
 
 
