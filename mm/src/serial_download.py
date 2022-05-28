@@ -1,3 +1,4 @@
+from pickletools import read_stringnl_noescape
 import serial, serial.tools.list_ports
 from time import sleep
 from pathlib import Path
@@ -13,27 +14,33 @@ SERIAL_PORT_READ_TIMEOUT = 2
 MAX_PAYLOAD_LENGTH = 65536
 
 
-
-
 FRAME_PREAMBLE = bytes([0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x55, 0x5D])
 
-SYNC_TAG   = 0x00000008
-CHANGE_BAUDRATE_TAG   = 0x0000000F
-VERSION_TAG = 0x00000020
-EXECUTE_TAG = 0x00000021
-REBOOT_TAG = 0x00000022
+SYNC_TAG            = 0x02
+INFO_TAG            = 0x03
+VERSION_TAG         = 0x04
+REBOOT_TAG          = 0x05
+EXECUTE_TAG         = 0x06
+CHANGE_BAUDRATE_TAG = 0x07
+READ_TAG            = 0x08
+WRITE_TAG           = 0x09
+RAM_BEGIN_TAG       = 0x0A
+RAM_DATA_TAG        = 0x0B
+RAM_END_TAG         = 0x0C
+VERIFY_TAG          = 0x0D
 
-MEM_BEGIN_TAG   = 0x00000005
-MEM_END_TAG     = 0x00000006
-MEM_DATA_TAG    = 0x00000007
+FLASH_BEGIN_TAG     = 0x30
+FLASH_DATA_TAG      = 0x31
+FLASH_END_TAG       = 0x32
 
-FLASH_BEGIN_TAG   = 0x00000030
-FLASH_END_TAG     = 0x00000031
-FLASH_DATA_TAG    = 0x00000032
+PARTION_BEGIN_TAG   = 0x38
+PARTION_DATA_TAG    = 0x39
+PARTION_END_TAG     = 0x3A
+PARTION_SETBOOT_TAG = 0x3B
 
-FS_BEGIN_TAG   = 0x00000033
-FS_END_TAG     = 0x00000034
-FS_DATA_TAG    = 0x00000035
+FS_BEGIN_TAG        = 0x40
+FS_DATA_TAG         = 0x41
+FS_END_TAG          = 0x42
 
 
 
@@ -43,6 +50,14 @@ def get_uint32_big_bytes(number):
         log.dbg('only support 32bit number!')
     
     return number.to_bytes(4, byteorder='big')
+
+
+def get_uint64_big_bytes(number):
+    if not isinstance(number, int):
+        log.dbg('only support 64bit int number!')
+    
+    return number.to_bytes(8, byteorder='big')
+
 
 def find_serial_device(device_name):
     port_list = list(serial.tools.list_ports.grep(device_name))
@@ -174,7 +189,6 @@ def response_verify(response, req_tag):
         log.dbg(' ')
         return False
 
-
     if not response_check_crc(response):
         log.dbg('Response error: response crc not match')
         log.dbg(' ')
@@ -199,7 +213,6 @@ def response_verify(response, req_tag):
         log.dbg('Response error: response id not equal')
         log.dbg('')
         return False
-
 
     return True
 
@@ -237,7 +250,7 @@ def sync(try_count = 6):
 
 
 def mem_begin(target_addr, target_length):
-    payload = get_uint32_big_bytes(target_addr) + get_uint32_big_bytes(target_length)
+    payload = get_uint64_big_bytes(target_addr) + get_uint32_big_bytes(target_length)
 
     send_request(MEM_BEGIN_TAG, payload)
     response = wait_response()
@@ -261,8 +274,9 @@ def mem_end(bin_crc):
     if not response_verify(response, MEM_END_TAG):
         log.dbg('mem_end failed')
 
+
 def flash_begin(image_offset, image_length):
-    image_offset = get_uint32_big_bytes(image_offset)
+    image_offset = get_uint64_big_bytes(image_offset)
     image_length = get_uint32_big_bytes(image_length)
 
     payload = image_offset + image_length
@@ -280,16 +294,58 @@ def flash_data(payload):
         log.dbg('flash_data failed!')
 
 
-
-def flash_end(bin_crc, run_addr):
+def flash_end(bin_crc):
     bin_crc = get_uint32_big_bytes(bin_crc)
-    run_addr = get_uint32_big_bytes(run_addr)
-    payload = bin_crc + run_addr
+    payload = bin_crc
 
     send_request(FLASH_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, FLASH_END_TAG):
         log.dbg('flash_end failed')
+
+
+
+def partion_begin(name, image_length):
+    name = bytes(name, 'utf-8').ljust(64, b'\x00')
+    image_length = get_uint32_big_bytes(image_length)
+
+    payload = name + image_length
+
+    send_request(PARTION_BEGIN_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, PARTION_BEGIN_TAG):
+        log.dbg('partion_begin failed!')
+
+
+def partion_data(payload):
+    send_request(PARTION_DATA_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, PARTION_DATA_TAG):
+        log.dbg('partion_data failed!')
+
+
+def partion_end(bin_crc):
+    bin_crc = get_uint32_big_bytes(bin_crc)
+    payload = bin_crc
+
+    send_request(PARTION_END_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, PARTION_END_TAG):
+        log.dbg('partion_end failed')
+
+
+def partion_set_boot(name):
+    payload = bytes(name, 'utf-8').ljust(64, b'\x00')
+
+    log.inf(payload.hex())
+
+    send_request(PARTION_SETBOOT_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, PARTION_SETBOOT_TAG):
+        log.dbg('set boot partion failed!')
+
+
+
 
 def sdcard_begin(image_length, image_path):
     image_length = get_uint32_big_bytes(image_length)
@@ -438,10 +494,8 @@ def execute(address):
     if not response_verify(response, EXECUTE_TAG):
         log.die('excute at ' + address + ' failed!') 
 
-def reboot(address):
-    payload = get_uint32_big_bytes(address)
-
-    send_request(REBOOT_TAG, payload)
+def reboot():
+    send_request(REBOOT_TAG)
     response = wait_response()
     if not response_verify(response, REBOOT_TAG):
         log.die('reboot tag failed')
@@ -480,7 +534,7 @@ SERIAL_DEVICE_NAME = 'USB Single Serial'
 
 
 
-def test():
+def download_test():
     init_serial_device(SERIAL_DEVICE_NAME)
 
     reset_to_download()
@@ -500,13 +554,19 @@ def test():
     # send_file2flash('/home/andy/Documents/recovery/recovery-bootloader/zephyr.bin', 0x00000000, 0x60100000)
     send_file2sdcard('/home/andy/Documents/recovery/recovery-bootloader/red_blue.bin', 'feather.bin', 0x80000000)
 
-    reboot(0x00000000)
+    reboot()
 
     deinit_serial_device()
 
 
+def partion_test():
+    init_serial_device(SERIAL_DEVICE_NAME)
 
+    reset_to_download()
+
+    name = 'pation name'
+    partion_set_boot(name)
 
 #log.set_verbosity(log.VERBOSE_DBG)
 #test_list_serial_port()
-test()
+partion_test()
