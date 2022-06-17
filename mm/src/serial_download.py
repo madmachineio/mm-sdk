@@ -4,7 +4,7 @@ from time import sleep
 from pathlib import Path
 from tqdm import tqdm
 from zlib import crc32
-import log
+import log, util
 
 
 SERIAL_PORT = None
@@ -205,7 +205,7 @@ def response_verify(response, req_tag):
         return False
 
     if tag[1] != success_byte:
-        log.dbg('Response error: error happend')
+        log.dbg('Response error: error happend: ' + str(tag[1]))
         log.dbg('')
         return False
 
@@ -356,27 +356,26 @@ def sdcard_begin(image_length, image_path):
     send_request(FS_BEGIN_TAG, payload)
     response = wait_response()
     if not response_verify(response, FS_BEGIN_TAG):
-        log.dbg('sdcard_begin failed!')
+        log.die('sdcard_begin failed!')
 
 
 def sdcard_data(payload):
     send_request(FS_DATA_TAG, payload)
     response = wait_response()
     if not response_verify(response, FS_DATA_TAG):
-        log.dbg('sdcard_begin failed!')
+        log.die('sdcard_begin failed!')
 
 
 
-def sdcard_end(bin_crc,run_addr):
+def sdcard_end(bin_crc):
     bin_crc = get_uint32_big_bytes(bin_crc)
-    run_addr = get_uint32_big_bytes(run_addr)
 
-    payload = bin_crc + run_addr
+    payload = bin_crc
 
     send_request(FS_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, FS_END_TAG):
-        log.dbg('sdcard_end failed!')
+        log.die('sdcard_end failed!')
 
 
 
@@ -425,7 +424,7 @@ def send_file2flash(file_name, addr, run_addr):
     flash_end(file_crc, run_addr)
 
 
-def send_file2sdcard(file_name, target_name, run_addr):
+def send_file2sdcard(file_name, target_name):
     f = Path(file_name)
 
     if not f.is_file():
@@ -446,7 +445,31 @@ def send_file2sdcard(file_name, target_name, run_addr):
         process_bar.update(len(payload))
     
     process_bar.close()
-    sdcard_end(file_crc, run_addr)
+    sdcard_end(file_crc)
+
+
+def send_file2partion(file_name, partition_name):
+    f = Path(file_name)
+
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    file_length = f.stat().st_size
+    file_bytes = f.read_bytes()
+    file_crc = crc32(file_bytes)
+    process_bar = tqdm(total=file_length, unit='B', unit_scale=True)
+
+    partion_begin(partition_name, file_length)
+
+    offset = 0
+    while offset < file_length:
+        payload = file_bytes[offset : offset + MAX_PAYLOAD_LENGTH]
+        offset += MAX_PAYLOAD_LENGTH
+        partion_data(payload)
+        process_bar.update(len(payload))
+
+    process_bar.close()
+    partion_end(file_crc)
 
 
 def get_boot_version():
@@ -487,7 +510,7 @@ def sync_baud(new_baud):
 
 
 def execute(address):
-    payload = get_uint32_big_bytes(address)
+    payload = get_uint64_big_bytes(address)
 
     send_request(EXECUTE_TAG, payload)
     response = wait_response()
@@ -514,7 +537,7 @@ IMAGE_HEADER_CAPACITY = 1024 * 4
 IMAGE_START_OFFSET = IMAGE_HEADER_CAPACITY  # Default 4k offset
 IMAGE_LOAD_ADDRESS = 0x80000000             # SDRAM start address
 IMAGE_TYPE = 0x10                           # User app 0
-IMAGE_VERIFY_TYPE = 0x01                     # CRC32
+IMAGE_VERIFY_TYPE = 0x01                    # CRC32
 IMAGE_VERIFY_CAPACITY = 64                  # 64 bytes capacity
 
 def create_image(bin_path, path, name):
@@ -559,10 +582,33 @@ def test_list_serial_port():
 
 
 
-SERIAL_DEVICE_NAME = 'USB Single Serial'
+# SERIAL_DEVICE_NAME = 'USB Single Serial'
 # SERIAL_DEVICE_NAME = 'FT232R'
-# SERIAL_DEVICE_NAME = 'CP2102N'
+SERIAL_DEVICE_NAME = 'CP2102N'
 
+
+
+
+def load_to_sdcard(serial_name, image, target_name):
+    init_serial_device(serial_name)
+
+    reset_to_download()
+    sync()
+
+    sync_baud(3000000)
+    sync()
+
+    serial_loader = util.get_tool_path('serial-loader')
+    send_file2mem(serial_loader, 0x00000000)
+    execute(0x00000000)
+
+    sleep(0.05)
+    sync()
+
+    send_file2sdcard(image, target_name)
+    reboot()
+
+    deinit_serial_device()
 
 
 def download_test():
@@ -590,6 +636,31 @@ def download_test():
     deinit_serial_device()
 
 
+
+def load_to_partion(serial_name, partion, image):
+    init_serial_device(serial_name)
+
+    reset_to_download()
+    sync()
+
+    sync_baud(3000000)
+    sync()
+
+    serial_loader = Path('/home/andy/swift-project/mm-sdk/Boards/SerialLoader.bin')
+    send_file2mem(serial_loader, 0x00000000)
+    execute(0x00000000)
+
+    sleep(0.05)
+    sync()
+
+    send_file2partion(image, partion)
+    partion_set_boot(partion)
+
+    reboot()
+
+    deinit_serial_device()
+
+
 def partion_test():
     init_serial_device(SERIAL_DEVICE_NAME)
 
@@ -600,4 +671,6 @@ def partion_test():
 
 #log.set_verbosity(log.VERBOSE_DBG)
 #test_list_serial_port()
-partion_test()
+#partion_test()
+# download_test()
+#load_to_partion('CP2102N', 'fsloader', './FSLoader.img')

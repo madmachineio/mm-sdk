@@ -1,6 +1,7 @@
 import os, sys, platform, argparse, shutil
 from pathlib import Path
 import log, util, spm, mmp, download, version
+import serial_download
 
 PROJECT_PATH = ''
 
@@ -70,25 +71,31 @@ def download_project(args):
 
     if not mmp_manifest.is_file():
         log.die('Package.mmp is required to download the project')
-
-    system = platform.system()
-
-    if system != 'Darwin':
-        log.die(system + ' is not supported currently, please copy the binary file manually')
     
     content = mmp_manifest.read_text()
     mmp.initialize(content)
+
     board_name = mmp.get_board_name()
     if board_name is None:
         log.die('Board name is not specified')
 
-    file_name = mmp.get_board_info('sd_image_name')
-    source = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+    system = platform.system()
+    if board_name == 'SwiftIOBoard' and system != 'Darwin':
+        log.die(system + ' is not supported currently, please copy the image file manually')
 
-    if not source.is_file():
+    file_name = mmp.get_board_info('sd_image_name')
+    image = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+
+    if not image.is_file():
         log.die('Cannot find ' + file_name)
     
-    download.darwin_download(source=source)
+    serial_name = mmp.get_board_info('usb2serial_device')
+
+    if board_name == 'SwiftIOFeather':
+        serial_download.load_to_sdcard(serial_name, image, file_name)
+    elif board_name == 'SwiftIOBoard':
+        download.darwin_download(source=image)
+
     log.inf('Done!')
 
 

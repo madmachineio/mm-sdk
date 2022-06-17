@@ -13,8 +13,7 @@ SWIFTIO_FEATHER = {'vid': '0x1fc9',
                     'pid': '0x0095',
                     'serial_number': '012345671FC90095',
                     'sd_image_name': 'feather.img',
-                    'usb2serial_device': 'USB Single Serial'}
-                    # CP2102N
+                    'usb2serial_device': 'CP2102N'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
@@ -455,8 +454,8 @@ IMAGE_HEADER_CAPACITY = 1024 * 4
 
 IMAGE_START_OFFSET = IMAGE_HEADER_CAPACITY  # Default 4k offset
 IMAGE_LOAD_ADDRESS = 0x80000000             # SDRAM start address
-IMAGE_TYPE = 0x10                           # User app 0
-IMAGE_VERIFY_TYPE = 0x01                     # CRC32
+IMAGE_TYPE = 0x20                           # User app 0
+IMAGE_VERIFY_TYPE = 0x01                    # CRC32
 IMAGE_VERIFY_CAPACITY = 64                  # 64 bytes capacity
 
 def create_image(path, name):

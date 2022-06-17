@@ -12,7 +12,8 @@ tool_set = {
     'swift-package': 'usr/bin/swift-package',
     'swift-test': 'usr/bin/swift-test',
     'objcopy': 'usr/bin/arm-none-eabi-objcopy',
-    'llvm-cov': 'usr/bin/llvm-cov'
+    'llvm-cov': 'usr/bin/llvm-cov',
+    'serial-loader': 'Boards/SerialLoader.bin'
 }
 
 def quote_string(path):
@@ -32,14 +33,17 @@ def get_sdk_path():
 def get_bin_path():
     return SDK_PATH / 'usr/bin'
 
-def get_tool(tool):
+def get_tool_path(tool):
     pos = tool_set.get(tool)
     path = Path(SDK_PATH / pos)
 
     if not path.is_file():
-        log.die('cannot find ' + quote_string(path))
+        log.die('cannot find ' + str(path))
 
-    return quote_string(path)
+    return path
+
+def get_tool(tool):
+    return quote_string(get_tool_path(tool))
 
 
 def command(flags):
