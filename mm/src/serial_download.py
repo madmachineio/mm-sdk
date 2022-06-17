@@ -61,13 +61,28 @@ def get_uint64_big_bytes(number):
 
 def find_serial_device(device_name):
     port_list = list(serial.tools.list_ports.grep(device_name))
-    if len(port_list) > 1:
+    count = len(port_list)
+    
+    if count == 0:
+        port_path = None
+    elif count == 1:
+        port_path = port_list[0].device
+    elif count == 2:
+        slab = None
+        seri = None
+        for port in port_list:
+            if 'slab' in port.name.lower():
+                slab = port.device
+            elif 'serial' in port.name.lower():
+                seri = port.device
+        
+        if slab != None and seri != None:
+            port_path = slab
+        else:
+            log.wrn('found more than one ' + device_name + '!')
+    else:
         log.wrn('found more than one ' + device_name + '!')
         port_path = None
-    elif len(port_list) == 0:
-        port_path = None
-    else:
-        port_path = port_list[0].device
 
     return port_path
 
