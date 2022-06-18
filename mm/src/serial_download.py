@@ -575,13 +575,6 @@ def load_to_ram(serial_name, image, address):
     sync_baud(3000000)
     sync()
 
-    serial_loader = util.get_tool_path('serial-loader')
-    send_file2mem(serial_loader, 0x00000000)
-    execute(0x00000000)
-
-    sleep(0.01)
-    sync()
-
     send_file2mem(image, address)
     execute(address)
 

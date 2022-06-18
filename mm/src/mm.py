@@ -293,7 +293,7 @@ def main():
     header_parser = subparsers.add_parser('add_header', help = 'Add header to bin file')
     header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Binary file path")
-    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
+    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
     header_parser.set_defaults(func = add_header)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
