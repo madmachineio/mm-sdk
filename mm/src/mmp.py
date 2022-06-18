@@ -13,7 +13,7 @@ SWIFTIO_FEATHER = {'vid': '0x1fc9',
                     'pid': '0x0095',
                     'serial_number': '012345671FC90095',
                     'sd_image_name': 'feather.img',
-                    'usb2serial_device': 'CP2102N'}
+                    'usb2serial_device': 'CP21'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format

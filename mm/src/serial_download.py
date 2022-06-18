@@ -602,6 +602,29 @@ def test_list_serial_port():
 SERIAL_DEVICE_NAME = 'CP2102N'
 
 
+def load_to_partition(serial_name, image, partition):
+    init_serial_device(serial_name)
+
+    reset_to_download()
+    sync()
+
+    sync_baud(3000000)
+    sync()
+
+    serial_loader = util.get_tool_path('serial-loader')
+    send_file2mem(serial_loader, 0x00000000)
+    execute(0x00000000)
+
+    sleep(0.05)
+    sync()
+
+    send_file2partion(image, partition)
+
+    partion_set_boot(partition)
+
+    reboot()
+
+    deinit_serial_device()
 
 
 def load_to_sdcard(serial_name, image, target_name):
@@ -651,29 +674,6 @@ def download_test():
     deinit_serial_device()
 
 
-
-def load_to_partion(serial_name, partion, image):
-    init_serial_device(serial_name)
-
-    reset_to_download()
-    sync()
-
-    sync_baud(3000000)
-    sync()
-
-    serial_loader = Path('/home/andy/swift-project/mm-sdk/Boards/SerialLoader.bin')
-    send_file2mem(serial_loader, 0x00000000)
-    execute(0x00000000)
-
-    sleep(0.05)
-    sync()
-
-    send_file2partion(image, partion)
-    partion_set_boot(partion)
-
-    reboot()
-
-    deinit_serial_device()
 
 
 def partion_test():

@@ -98,6 +98,25 @@ def download_project(args):
 
     log.inf('Done!')
 
+def download_partition(args):
+    if args.file is None:
+        log.die('Plz specify the file path')
+    
+    f = Path(args.file)
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+    
+    partition = args.partition
+
+    serial_download.load_to_partition('CP21', f, partition)
+
+
+def download_img(args):
+    if args.partition is None:
+        download_project(args)
+    else:
+        download_partition(args)
+
 
 def ci_build(args):
     spm.initialize()
@@ -240,8 +259,10 @@ def main():
     build_parser.set_defaults(func = build_project)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
+    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Download to partion")
+    download_parser.add_argument('-f', '--file', type = str, default = None, help = "Download file to partion")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
-    download_parser.set_defaults(func = download_project)
+    download_parser.set_defaults(func = download_img)
 
     clean_parser = subparsers.add_parser('clean', help = 'Clean project')
     clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all compilation outputs")
