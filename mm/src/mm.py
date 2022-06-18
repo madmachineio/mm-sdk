@@ -1,7 +1,7 @@
 import os, sys, platform, argparse, shutil
 from pathlib import Path
 import log, util, spm, mmp, download, version
-import serial_download
+import serial_download, image
 
 PROJECT_PATH = ''
 
@@ -61,12 +61,13 @@ def build_project(args):
     path = PROJECT_PATH / '.build' / triple / 'release'
 
     if p_type == 'executable' and (path / p_name).exists():
-        mmp.create_image(path=path, name=p_name)
+        bin_path = mmp.create_binary(path=path, name=p_name)
+        image.create_image(bin_path, path, p_name)
     
     log.inf('Done!')
     
 
-def download_project(args):
+def download_project_to_sd(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
     if not mmp_manifest.is_file():
@@ -98,25 +99,55 @@ def download_project(args):
 
     log.inf('Done!')
 
-def download_partition(args):
-    if args.file is None:
-        log.die('Plz specify the file path')
+def download_to_partition(args):
+    if args.file is None or args.partition is None:
+        log.die('Plz specify the file path and target partition name')
     
-    f = Path(args.file)
+    f = args.file
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    serial_download.load_to_partition('CP21', f, args.partition)
+
+def download_to_ram(args):
+    if args.file is None or args.address is None:
+        log.die('Plz specify the file path and target RAM address')
+
+    address = int(args.address, 16)
+    log.inf(address)
+
+    f = args.file
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
     
-    partition = args.partition
-
-    serial_download.load_to_partition('CP21', f, partition)
+    serial_download.load_to_ram('CP21', f, address)
 
 
 def download_img(args):
-    if args.partition is None:
-        download_project(args)
-    else:
-        download_partition(args)
+    if args.location == 'sd':
+        download_project_to_sd(args)
+    elif args.location == 'partition':
+        download_to_partition(args)
+    elif args.location == 'ram':
+        download_to_ram(args)
 
+
+def add_header(args):
+    if args.file is None:
+        log.die('Plz specify the file path')
+
+    if args.address is None:
+        log.wrn('Image default address 0x80000000')
+        address = 0x80000000
+    else:
+        address = int(args.address, 16)
+
+    f = args.file
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    current_path = Path('.')
+    image.create_image(f, current_path, f.name + '.img', address)    
 
 def ci_build(args):
     spm.initialize()
@@ -149,7 +180,8 @@ def ci_build(args):
 
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
-                mmp.create_image(path=path, name=p_name)
+                bin_path = mmp.create_binary(path, name)
+                image.create_image(bin_path, path=path, name=p_name)
                 source = path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
@@ -258,9 +290,17 @@ def main():
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     build_parser.set_defaults(func = build_project)
 
+    header_parser = subparsers.add_parser('add_header', help = 'Add header to bin file')
+    header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Binary file path")
+    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
+    header_parser.set_defaults(func = add_header)
+
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
-    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Download to partion")
-    download_parser.add_argument('-f', '--file', type = str, default = None, help = "Download file to partion")
+    download_parser.add_argument('-l', '--location', type = str, choices = ['ram', 'partition', 'sd'], default = 'sd', help = "Download type, default is sd card")
+    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "File path")
+    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target partition")
+    download_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_img)
 

@@ -96,7 +96,10 @@ def init_serial_device(device_name):
     else:
         log.inf('Found ' + device_name + ' at ' + port_path)
 
-    SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
+    try:
+        SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
+    except IOError:
+        log.die('Device or resource busy! Plz make sure it is not in use!')
 
     if SERIAL_PORT is not None and SERIAL_PORT.is_open:
         SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
@@ -118,14 +121,12 @@ def reset_to_download():
     SERIAL_PORT.rts = True     #DTR = 1, RTS = 0 | BOOT = Pullup,   RESET = 0,
     sleep(0.05)
 
-
     SERIAL_PORT.dtr = True     #DTR = 0, RTS = 0 | BOOT = Pullup, RESET = Charging,
     # Large capacitor at RESET pin
     SERIAL_PORT.rts = False    #DTR = 0, RTS = 1 | BOOT = 0,      RESET = From 0 to Pullup,
     sleep(0.05)
 
     SERIAL_PORT.dtr = False    #DTR = 1, RTS = 1 | BOOT = Pullup, RESET = Pullup,
-    sleep(0.05)           #Wait MCU serial port ready
 
 
 
@@ -547,38 +548,7 @@ def reboot():
 
 
 
-IMAGE_HEADER_CAPACITY = 1024 * 4
 
-IMAGE_START_OFFSET = IMAGE_HEADER_CAPACITY  # Default 4k offset
-IMAGE_LOAD_ADDRESS = 0x80000000             # SDRAM start address
-IMAGE_TYPE = 0x10                           # User app 0
-IMAGE_VERIFY_TYPE = 0x01                    # CRC32
-IMAGE_VERIFY_CAPACITY = 64                  # 64 bytes capacity
-
-def create_image(bin_path, path, name):
-    image_name = name
-    image_path = path / image_name
-
-    log.inf('Creating image ' + image_name + '...')
-
-    image_raw_binary = bin_path.read_bytes()
-
-    image_offset = IMAGE_START_OFFSET.to_bytes(8, byteorder='little')
-    image_size = len(image_raw_binary).to_bytes(8, byteorder='little')
-    image_load_address = IMAGE_LOAD_ADDRESS.to_bytes(8, byteorder='little')
-    image_type = IMAGE_TYPE.to_bytes(4, byteorder='little')
-    image_verify_type = IMAGE_VERIFY_TYPE.to_bytes(4, byteorder='little')
-    image_crc = crc32(image_raw_binary).to_bytes(4, byteorder='little')
-    image_crc = image_crc + bytes(IMAGE_VERIFY_CAPACITY - len(image_crc))
-
-    image_header = image_offset + image_size + image_load_address + image_type + image_verify_type + image_crc
-
-    header_crc = crc32(image_header).to_bytes(4, byteorder='little')
-    image_header = header_crc + image_header
-
-    header_block = image_header.ljust(IMAGE_HEADER_CAPACITY, b'\xff')
-
-    image_path.write_bytes(header_block + image_raw_binary)
 
 
 
@@ -592,14 +562,30 @@ def create_image(bin_path, path, name):
 def test_list_serial_port():
     port_list = serial.tools.list_ports.comports()
     for port in port_list:
+        log.inf(port.device)
         log.inf(port.description)
 
 
+def load_to_ram(serial_name, image, address):
+    init_serial_device(serial_name)
 
+    reset_to_download()
+    sync()
 
-# SERIAL_DEVICE_NAME = 'USB Single Serial'
-# SERIAL_DEVICE_NAME = 'FT232R'
-SERIAL_DEVICE_NAME = 'CP2102N'
+    sync_baud(3000000)
+    sync()
+
+    serial_loader = util.get_tool_path('serial-loader')
+    send_file2mem(serial_loader, 0x00000000)
+    execute(0x00000000)
+
+    sleep(0.01)
+    sync()
+
+    send_file2mem(image, address)
+    execute(address)
+
+    deinit_serial_device()
 
 
 def load_to_partition(serial_name, image, partition):
@@ -615,7 +601,7 @@ def load_to_partition(serial_name, image, partition):
     send_file2mem(serial_loader, 0x00000000)
     execute(0x00000000)
 
-    sleep(0.05)
+    sleep(0.01)
     sync()
 
     send_file2partion(image, partition)
@@ -640,52 +626,10 @@ def load_to_sdcard(serial_name, image, target_name):
     send_file2mem(serial_loader, 0x00000000)
     execute(0x00000000)
 
-    sleep(0.05)
+    sleep(0.01)
     sync()
 
     send_file2sdcard(image, target_name)
     reboot()
 
     deinit_serial_device()
-
-
-def download_test():
-    init_serial_device(SERIAL_DEVICE_NAME)
-
-    reset_to_download()
-    sync()
-
-    get_boot_version()
-
-    sync_baud(3000000)
-    sync()
-
-    send_file2mem('/home/andy/Documents/recovery/build/zephyr/zephyr.bin', 0x20200000)
-    execute(0x20200000)
-
-    sleep(0.1)
-    sync()
-
-    # send_file2flash('/home/andy/Documents/recovery/recovery-bootloader/zephyr.bin', 0x00000000, 0x60100000)
-    send_file2sdcard('/home/andy/Documents/recovery/recovery-bootloader/red_blue.bin', 'feather.bin', 0x80000000)
-
-    reboot()
-
-    deinit_serial_device()
-
-
-
-
-def partion_test():
-    init_serial_device(SERIAL_DEVICE_NAME)
-
-    reset_to_download()
-
-    name = 'pation name'
-    partion_set_boot(name)
-
-#log.set_verbosity(log.VERBOSE_DBG)
-#test_list_serial_port()
-#partion_test()
-# download_test()
-#load_to_partion('CP2102N', 'fsloader', './FSLoader.img')
