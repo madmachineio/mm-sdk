@@ -62,7 +62,8 @@ def build_project(args):
 
     if p_type == 'executable' and (path / p_name).exists():
         bin_path = mmp.create_binary(path=path, name=p_name)
-        image.create_image(bin_path, path, p_name)
+        image_name = mmp.get_board_info('sd_image_name')
+        image.create_image(bin_path, path, image_name)
     
     log.inf('Done!')
     
@@ -181,7 +182,8 @@ def ci_build(args):
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
                 bin_path = mmp.create_binary(path, name)
-                image.create_image(bin_path, path=path, name=p_name)
+                image_name = mmp.get_board_info('sd_image_name')
+                image.create_image(bin_path, path=path, name=image_name)
                 source = path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
@@ -293,7 +295,7 @@ def main():
     header_parser = subparsers.add_parser('add_header', help = 'Add header to bin file')
     header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Binary file path")
-    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
+    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
     header_parser.set_defaults(func = add_header)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
