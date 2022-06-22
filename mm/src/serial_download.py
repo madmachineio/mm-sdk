@@ -119,14 +119,15 @@ def deinit_serial_device():
 def reset_to_download():
     SERIAL_PORT.dtr = False    #DTR = 1, RTS = 1 | BOOT = Pullup,   RESET = Pullup,
     SERIAL_PORT.rts = True     #DTR = 1, RTS = 0 | BOOT = Pullup,   RESET = 0,
-    sleep(0.05)
+    sleep(0.04)
 
     SERIAL_PORT.dtr = True     #DTR = 0, RTS = 0 | BOOT = Pullup, RESET = Charging,
     # Large capacitor at RESET pin
     SERIAL_PORT.rts = False    #DTR = 0, RTS = 1 | BOOT = 0,      RESET = From 0 to Pullup,
-    sleep(0.05)
+    sleep(0.06)                # ~0.01: EN pull up done; ~0.02: ROM init done; ~0.04: info output done
 
     SERIAL_PORT.dtr = False    #DTR = 1, RTS = 1 | BOOT = Pullup, RESET = Pullup,
+
 
 
 
@@ -395,7 +396,7 @@ def sdcard_end(bin_crc):
 
 
 
-def send_file2mem(file_name, addr):
+def send_file2mem(file_name, addr, bar=False):
     f = Path(file_name)
 
     if not f.is_file():
@@ -404,6 +405,8 @@ def send_file2mem(file_name, addr):
     file_length = f.stat().st_size
     file_bytes = f.read_bytes()
     file_crc = crc32(file_bytes)
+    if bar:
+        process_bar = tqdm(total=file_length, unit='B', unit_scale=True)
 
     mem_begin(addr, file_length)
 
@@ -412,7 +415,11 @@ def send_file2mem(file_name, addr):
         payload = file_bytes[offset : offset + MAX_PAYLOAD_LENGTH]
         offset += MAX_PAYLOAD_LENGTH
         mem_data(payload)
-    
+        if bar:
+            process_bar.update(len(payload))
+
+    if bar:
+        process_bar.close()
     mem_end(file_crc)
 
 
@@ -511,7 +518,6 @@ def change_host_baud(new_baud):
 def sync_baud(new_baud):
     payload = get_uint32_big_bytes(new_baud)
 
-    sleep(0.01)
     SERIAL_PORT.reset_output_buffer()
     SERIAL_PORT.reset_input_buffer()
     send_request(CHANGE_BAUDRATE_TAG, payload)
@@ -626,3 +632,41 @@ def load_to_sdcard(serial_name, image, target_name):
     reboot()
 
     deinit_serial_device()
+
+
+
+IMAGE1 = Path('./feather.img')
+IMAGE2 = Path('./clear_to_AA.bin')
+
+def test_load_to_ram(serial_name, address):
+
+    init_serial_device(serial_name)
+    count = 0
+    mbytes = 0
+
+    i1_size = IMAGE1.stat().st_size / 1024 / 1024.0
+    i2_size = IMAGE2.stat().st_size / 1024 / 1024.0
+
+    while True:
+        change_host_baud(115200)
+        reset_to_download()
+        sync()
+
+        sync_baud(3000000)
+        sync()
+
+        if count % 2 == 0:
+            send_file2mem(IMAGE2, address, True)
+            mbytes += i2_size
+        else:
+            send_file2mem(IMAGE1, address, True)
+            mbytes += i1_size
+        
+        #deinit_serial_device()
+        count += 1
+
+        log.inf('------ count = ' + str(count) + ' transfer ' + str(mbytes) + 'mb' + ' ------')
+
+
+#log.set_verbosity(log.VERBOSE_DBG)
+#test_load_to_ram('CP21', 0x80000000)
