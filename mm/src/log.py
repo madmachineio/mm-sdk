@@ -170,13 +170,13 @@ def err(*args, prefix=True, level=VERBOSE_ERR):
     if _use_colors():
         _reset_colors(sys.stderr)
 
-def die(*args, exit_code=1) -> NoReturn:
+def die(*args, prefix=True, exit_code=1) -> NoReturn:
     '''Print a fatal error, and abort the program.
     :param args: sequence of arguments to print.
     :param exit_code: return code the program should use when aborting.
     Equivalent to ``die(*args, fatal=True)``, followed by an attempt to
     abort with the given *exit_code*.'''
-    err(*args)
+    err(*args, prefix=prefix)
     sys.exit(exit_code)
 
 def msg(*args, color=None, stream=sys.stdout):

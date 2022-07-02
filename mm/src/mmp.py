@@ -193,8 +193,8 @@ def get_cc_flags(p_type):
     flags += get_c_predefined()
 
     #TODO, arm-2d needs the clang headers to be compiled!
-    flags += get_gcc_include_path()
-    #flags += get_clang_include_path()
+    #flags += get_gcc_include_path()
+    flags += get_clang_include_path()
     
     return flags
 
@@ -278,7 +278,36 @@ def get_swift_gcc_header():
         'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        #'usr/lib/clang/10.0.0/include',
+        #'usr/lib/clang/13.0.0/include',
+    ]
+
+    flags = ['-I ' + str(sdk_path / item) for item in flags]
+    flags = (' '.join(flags)).split(' ')
+
+    flags = ['-Xcc ' + item for item in flags]
+    flags = (' '.join(flags)).split(' ')
+    return flags
+
+def get_swift_clang_header():
+    #Used for newlib constants like errno.h
+
+    sdk_path = util.get_sdk_path()
+
+    flags = [
+        #newlib header
+        'usr/arm-none-eabi/include',
+
+        #libstdc++ header
+        #'usr/arm-none-eabi/include/c++/10.3.1',
+        #'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
+        #'usr/arm-none-eabi/include/c++/10.3.1/backward',
+
+        #libgcc header
+        #'usr/lib/gcc/arm-none-eabi/10.3.1/include',
+        #'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
+
+        #clang compiler-rt header
+        'usr/lib/clang/13.0.0/include',
     ]
 
     flags = ['-I ' + str(sdk_path / item) for item in flags]
@@ -381,7 +410,10 @@ def get_swiftc_flags(p_type):
 
     flags += get_swift_arch()
     flags += get_swift_predefined(p_type)
-    flags += get_swift_gcc_header()
+    
+    #TODO, arm-2d needs the clang headers to be compiled!
+    #flags += get_swift_gcc_header()
+    flags += get_swift_clang_header()
 
     # Need to add '-nostdlib++' in static-executable-args.lnk
     # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
@@ -446,40 +478,3 @@ def create_binary(path, name):
         log.die('creating binary failed!')
     else:
         return bin_path
-
-
-
-
-IMAGE_HEADER_CAPACITY = 1024 * 4
-
-IMAGE_START_OFFSET = IMAGE_HEADER_CAPACITY  # Default 4k offset
-IMAGE_LOAD_ADDRESS = 0x80000000             # SDRAM start address
-IMAGE_TYPE = 0x20                           # User app 0
-IMAGE_VERIFY_TYPE = 0x01                    # CRC32
-IMAGE_VERIFY_CAPACITY = 64                  # 64 bytes capacity
-
-def create_image(path, name):
-    image_name = get_board_info(info='sd_image_name')
-    image_path = path / image_name
-
-    log.inf('Creating image ' + image_name + '...')
-
-    bin_path = create_binary(path, name)
-    image_raw_binary = bin_path.read_bytes()
-
-    image_offset = IMAGE_START_OFFSET.to_bytes(8, byteorder='little')
-    image_size = len(image_raw_binary).to_bytes(8, byteorder='little')
-    image_load_address = IMAGE_LOAD_ADDRESS.to_bytes(8, byteorder='little')
-    image_type = IMAGE_TYPE.to_bytes(4, byteorder='little')
-    image_verify_type = IMAGE_VERIFY_TYPE.to_bytes(4, byteorder='little')
-    image_crc = crc32(image_raw_binary).to_bytes(4, byteorder='little')
-    image_crc = image_crc + bytes(IMAGE_VERIFY_CAPACITY - len(image_crc))
-
-    image_header = image_offset + image_size + image_load_address + image_type + image_verify_type + image_crc
-
-    header_crc = crc32(image_header).to_bytes(4, byteorder='little')
-    image_header = header_crc + image_header
-
-    header_block = image_header.ljust(IMAGE_HEADER_CAPACITY, b'\xff')
-
-    image_path.write_bytes(header_block + image_raw_binary)
