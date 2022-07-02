@@ -193,8 +193,8 @@ def get_cc_flags(p_type):
     flags += get_c_predefined()
 
     #TODO, arm-2d needs the clang headers to be compiled!
-    #flags += get_gcc_include_path()
-    flags += get_clang_include_path()
+    flags += get_gcc_include_path()
+    #flags += get_clang_include_path()
     
     return flags
 
@@ -412,8 +412,8 @@ def get_swiftc_flags(p_type):
     flags += get_swift_predefined(p_type)
     
     #TODO, arm-2d needs the clang headers to be compiled!
-    #flags += get_swift_gcc_header()
-    flags += get_swift_clang_header()
+    flags += get_swift_gcc_header()
+    #flags += get_swift_clang_header()
 
     # Need to add '-nostdlib++' in static-executable-args.lnk
     # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
