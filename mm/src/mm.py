@@ -100,6 +100,27 @@ def download_project_to_sd(args):
 
     log.inf('Done!')
 
+
+def download_to_sd_with_target_name(serial_name, image, file_name):
+        serial_download.load_to_sdcard(serial_name, image, file_name)
+
+
+def download_to_sd(args):
+    if args.file is None:
+        log.die('Plz specify the file path')
+
+    f = args.file
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    path = Path(f)
+    if path.suffix == '':
+        file_name = path.stem
+    else:
+        file_name = path.name
+
+    download_to_sd_with_target_name('CP21', f, file_name)
+
 def download_to_partition(args):
     if args.file is None or args.partition is None:
         log.die('Plz specify the file path and target partition name')
@@ -125,8 +146,10 @@ def download_to_ram(args):
 
 
 def download_img(args):
-    if args.location == 'sd':
+    if args.location == None:
         download_project_to_sd(args)
+    elif args.location == 'sd':
+        download_to_sd(args)
     elif args.location == 'partition':
         download_to_partition(args)
     elif args.location == 'ram':
@@ -299,7 +322,7 @@ def main():
     header_parser.set_defaults(func = add_header)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
-    download_parser.add_argument('-l', '--location', type = str, choices = ['ram', 'partition', 'sd'], default = 'sd', help = "Download type, default is sd card")
+    download_parser.add_argument('-l', '--location', type = str, choices = ['ram', 'partition', 'sd'], default = None, help = "Download type, default is MadMachine Project")
     download_parser.add_argument('-f', '--file', type = Path, default = None, help = "File path")
     download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target partition")
     download_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
