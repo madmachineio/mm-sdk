@@ -1,8 +1,8 @@
 import os, sys, platform, argparse, shutil
 from pathlib import Path
-import log, util, spm, mmp, download
+import log, util, spm, mmp, download, version
+import serial_download, image
 
-VERSION = '0.7.0'
 PROJECT_PATH = ''
 
 def init_project(args):
@@ -10,7 +10,7 @@ def init_project(args):
     spm_manifest = Path(PROJECT_PATH / 'Package.swift')
 
     if mmp_manifest.is_file():
-        log.die('Package.mmp already exists in this directory, command ignored')
+        log.die('Package.mmp already exists, command ignored')
 
     board_name = args.board
     if not spm_manifest.is_file():
@@ -24,7 +24,7 @@ def init_project(args):
         content = spm.init_manifest(p_name=init_name, p_type=init_type)
         spm_manifest.write_text(content, encoding='UTF-8')
     else:
-        log.wrn('Package.swift already exists, project type and project name are ignored')
+        log.wrn('Package.swift already exists, project type and name are ignored')
         spm.initialize()
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
@@ -32,7 +32,7 @@ def init_project(args):
             log.die('board name is required to initialize an executable')
 
     content = mmp.init_manifest(board=board_name, p_type=init_type)
-    log.inf('Creating Package.mmp', level=log.VERBOSE_VERY)
+    log.inf('Creating Package.mmp')
     mmp_manifest.write_text(content, encoding='UTF-8')
 
 
@@ -61,37 +61,117 @@ def build_project(args):
     path = PROJECT_PATH / '.build' / triple / 'release'
 
     if p_type == 'executable' and (path / p_name).exists():
-        mmp.create_binary(path=path, name=p_name)
+        bin_path = mmp.create_binary(path=path, name=p_name)
+        image_name = mmp.get_board_info('sd_image_name')
+        image.create_image(bin_path, path, image_name)
     
     log.inf('Done!')
     
 
-def download_project(args):
+def download_project_to_sd(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
     if not mmp_manifest.is_file():
         log.die('Package.mmp is required to download the project')
-
-    system = platform.system()
-
-    if system != 'Darwin':
-        log.die(system + ' is not supported currently, please copy the binary file manually')
     
     content = mmp_manifest.read_text()
     mmp.initialize(content)
+
     board_name = mmp.get_board_name()
     if board_name is None:
         log.die('Board name is not specified')
 
-    file_name = mmp.get_board_info('target_file')
-    source = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+    system = platform.system()
+    if board_name == 'SwiftIOBoard' and system != 'Darwin':
+        log.die(system + ' is not supported currently, please copy the image file manually')
 
-    if not source.is_file():
+    file_name = mmp.get_board_info('sd_image_name')
+    image = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+
+    if not image.is_file():
         log.die('Cannot find ' + file_name)
     
-    download.darwin_download(source=source)
+    serial_name = mmp.get_board_info('usb2serial_device')
+
+    if board_name == 'SwiftIOFeather':
+        serial_download.load_to_sdcard(serial_name, image, file_name)
+    elif board_name == 'SwiftIOBoard':
+        download.darwin_download(source=image)
+
     log.inf('Done!')
 
+
+def download_to_sd_with_target_name(serial_name, image, file_name):
+        serial_download.load_to_sdcard(serial_name, image, file_name)
+
+
+def download_to_sd(args):
+    if args.file is None:
+        log.die('Plz specify the file path')
+
+    f = args.file
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    path = Path(f)
+    if path.suffix == '':
+        file_name = path.stem
+    else:
+        file_name = path.name
+
+    download_to_sd_with_target_name('CP21', f, file_name)
+
+def download_to_partition(args):
+    if args.file is None or args.partition is None:
+        log.die('Plz specify the file path and target partition name')
+    
+    f = args.file
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    serial_download.load_to_partition('CP21', f, args.partition)
+
+def download_to_ram(args):
+    if args.file is None or args.address is None:
+        log.die('Plz specify the file path and target RAM address')
+
+    address = int(args.address, 16)
+    log.inf(address)
+
+    f = args.file
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+    
+    serial_download.load_to_ram('CP21', f, address)
+
+
+def download_img(args):
+    if args.location == None:
+        download_project_to_sd(args)
+    elif args.location == 'sd':
+        download_to_sd(args)
+    elif args.location == 'partition':
+        download_to_partition(args)
+    elif args.location == 'ram':
+        download_to_ram(args)
+
+
+def add_header(args):
+    if args.file is None:
+        log.die('Plz specify the file path')
+
+    if args.address is None:
+        log.wrn('Image default address 0x80000000')
+        address = 0x80000000
+    else:
+        address = int(args.address, 16)
+
+    f = args.file
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    current_path = Path('.')
+    image.create_image(f, current_path, f.name + '.img', address)    
 
 def ci_build(args):
     spm.initialize()
@@ -107,7 +187,7 @@ def ci_build(args):
 
     for board in boards:
         for triple in triples:
-            log.inf(triple)
+            log.inf('Building for ' + triple)
             #(PROJECT_PATH / '.build').unlink(missing_ok=True)
             if (PROJECT_PATH / '.build').exists():
                 shutil.rmtree((PROJECT_PATH / '.build'))
@@ -123,9 +203,11 @@ def ci_build(args):
             path = PROJECT_PATH / '.build' / triple / 'release'
 
             if p_type == 'executable' and (path / p_name).exists():
-                log.inf(board)
-                mmp.create_binary(path=path, name=p_name)
-                source = path / mmp.get_board_info('target_file')
+                log.inf('Building for ' + board)
+                bin_path = mmp.create_binary(path, name)
+                image_name = mmp.get_board_info('sd_image_name')
+                image.create_image(bin_path, path=path, name=image_name)
+                source = path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
                 shutil.copy(source, target)
@@ -233,9 +315,19 @@ def main():
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     build_parser.set_defaults(func = build_project)
 
+    header_parser = subparsers.add_parser('add_header', help = 'Add header to bin file')
+    header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Binary file path")
+    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
+    header_parser.set_defaults(func = add_header)
+
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
+    download_parser.add_argument('-l', '--location', type = str, choices = ['ram', 'partition', 'sd'], default = None, help = "Download type, default is MadMachine Project")
+    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "File path")
+    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target partition")
+    download_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
-    download_parser.set_defaults(func = download_project)
+    download_parser.set_defaults(func = download_img)
 
     clean_parser = subparsers.add_parser('clean', help = 'Clean project')
     clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all compilation outputs")
@@ -257,14 +349,14 @@ def main():
 
     args = parser.parse_args()
     if vars(args).get('version'):
-        print(VERSION)
+        print(version.__VERSION__)
         sys.exit(0)
 
     if vars(args).get('func') is None:
         log.die('subcommand is required, use \'mm --help\' to get more information')
 
     if args.verbose:
-        log.set_verbosity(log.VERBOSE_VERY)
+        log.set_verbosity(log.VERBOSE_DBG)
 
     sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
     util.set_sdk_path(sdk_path)

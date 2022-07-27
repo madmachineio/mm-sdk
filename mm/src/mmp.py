@@ -1,5 +1,4 @@
 import toml, json
-import struct
 from zlib import crc32
 from pathlib import Path
 import util, log
@@ -7,12 +6,14 @@ import util, log
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
                 'serial_number': '012345671FC90093',
-                'target_file': 'swiftio.bin'}
+                'sd_image_name': 'swiftio.img',
+                'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
 SWIFTIO_FEATHER = {'vid': '0x1fc9',
                     'pid': '0x0095',
                     'serial_number': '012345671FC90095',
-                    'target_file': 'feather.bin'}
+                    'sd_image_name': 'feather.img',
+                    'usb2serial_device': 'CP21'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
@@ -277,7 +278,36 @@ def get_swift_gcc_header():
         'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        #'usr/lib/clang/10.0.0/include',
+        #'usr/lib/clang/13.0.0/include',
+    ]
+
+    flags = ['-I ' + str(sdk_path / item) for item in flags]
+    flags = (' '.join(flags)).split(' ')
+
+    flags = ['-Xcc ' + item for item in flags]
+    flags = (' '.join(flags)).split(' ')
+    return flags
+
+def get_swift_clang_header():
+    #Used for newlib constants like errno.h
+
+    sdk_path = util.get_sdk_path()
+
+    flags = [
+        #newlib header
+        'usr/arm-none-eabi/include',
+
+        #libstdc++ header
+        #'usr/arm-none-eabi/include/c++/10.3.1',
+        #'usr/arm-none-eabi/include/c++/10.3.1/arm-none-eabi/thumb' + sub_path,
+        #'usr/arm-none-eabi/include/c++/10.3.1/backward',
+
+        #libgcc header
+        #'usr/lib/gcc/arm-none-eabi/10.3.1/include',
+        #'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
+
+        #clang compiler-rt header
+        'usr/lib/clang/13.0.0/include',
     ]
 
     flags = ['-I ' + str(sdk_path / item) for item in flags]
@@ -380,7 +410,10 @@ def get_swiftc_flags(p_type):
 
     flags += get_swift_arch()
     flags += get_swift_predefined(p_type)
+    
+    #TODO, arm-2d needs the clang headers to be compiled!
     flags += get_swift_gcc_header()
+    #flags += get_swift_clang_header()
 
     # Need to add '-nostdlib++' in static-executable-args.lnk
     # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
@@ -421,7 +454,6 @@ def clean(p_path):
     for file in files:
         file.unlink()
 
-
 def create_binary(path, name):
     elf_path = path / name
     bin_path = path / (name + '.bin')
@@ -442,21 +474,7 @@ def create_binary(path, name):
         util.quote_string(bin_path)
     ]
     
-    log.inf('Creating binary...')
     if util.command(flags):
         log.die('creating binary failed!')
-    
-    target_file = get_board_info(info='target_file')
-    target_path = path / target_file
-
-    data = bin_path.read_bytes()
-    value = crc32(data)
-    mask = (1 << 8) - 1
-    list_dec = [(value >> k) & mask for k in range(0, 32, 8)]
-
-    log.inf('Creating ' + target_file + '...')
-    with open(target_path, 'wb') as file:
-        file.write(data)
-        for number in list_dec:
-            byte = struct.pack('B', number)
-            file.write(byte)
+    else:
+        return bin_path

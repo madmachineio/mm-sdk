@@ -2,6 +2,9 @@ import subprocess
 from pathlib import Path
 import log
 
+
+
+
 SDK_PATH = ''
 
 tool_set = {
@@ -9,7 +12,8 @@ tool_set = {
     'swift-package': 'usr/bin/swift-package',
     'swift-test': 'usr/bin/swift-test',
     'objcopy': 'usr/bin/arm-none-eabi-objcopy',
-    'llvm-cov': 'usr/bin/llvm-cov'
+    'llvm-cov': 'usr/bin/llvm-cov',
+    'serial-loader': 'Boards/SerialLoader.bin'
 }
 
 def quote_string(path):
@@ -29,14 +33,17 @@ def get_sdk_path():
 def get_bin_path():
     return SDK_PATH / 'usr/bin'
 
-def get_tool(tool):
+def get_tool_path(tool):
     pos = tool_set.get(tool)
     path = Path(SDK_PATH / pos)
 
     if not path.is_file():
-        log.die('cannot find ' + quote_string(path))
+        log.die('cannot find ' + str(path))
 
-    return quote_string(path)
+    return path
+
+def get_tool(tool):
+    return quote_string(get_tool_path(tool))
 
 
 def command(flags):
@@ -44,10 +51,10 @@ def command(flags):
     for item in flags:
         cmd += item + ' '
 
-    if log.VERBOSE > log.VERBOSE_NORMAL:
+    if log.VERBOSE > log.VERBOSE_INF:
         cmd += '-v'
 
-    log.inf(cmd, level = log.VERBOSE_VERY)
+    log.inf(cmd, prefix=False, level=log.VERBOSE_DBG)
 
     p = subprocess.Popen(cmd, shell=True)
     ret = p.wait()
@@ -60,10 +67,10 @@ def run_command(flags):
     for item in flags:
         cmd += item + ' '
 
-    #if log.VERBOSE > log.VERBOSE_NORMAL:
+    #if log.VERBOSE > log.VERBOSE_INF:
     #    cmd += '-v'
 
-    log.inf(cmd, level=log.VERBOSE_VERY)
+    log.inf(cmd, prefix=False, level=log.VERBOSE_DBG)
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     ret = p.wait()
