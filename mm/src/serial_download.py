@@ -600,7 +600,7 @@ def load_to_partition(serial_name, image, partition):
     send_file2mem(serial_loader, 0x00000000)
     execute(0x00000000)
 
-    sleep(0.01)
+    sleep(0.05)
     sync()
 
     send_file2partion(image, partition)
@@ -625,7 +625,7 @@ def load_to_sdcard(serial_name, image, target_name):
     send_file2mem(serial_loader, 0x00000000)
     execute(0x00000000)
 
-    sleep(0.01)
+    sleep(0.05)
     sync()
 
     send_file2sdcard(image, target_name)
