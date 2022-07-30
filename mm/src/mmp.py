@@ -2,6 +2,7 @@ import toml, json
 from zlib import crc32
 from pathlib import Path
 import util, log
+from pathlib import PosixPath
 
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
@@ -328,7 +329,8 @@ def get_swift_linker_config():
         '--sort-common=descending',
         '--sort-section=alignment',
         #'--no-enum-size-warning',
-        '--print-memory-usage'
+        '--print-memory-usage',
+        '--Map=ld.map'
     ]
     flags = ['-Xlinker ' + item for item in flags]
     flags = (' '.join(flags)).split(' ')
@@ -375,7 +377,11 @@ def get_swift_board_library():
 
     libraries = ['--whole-archive']
     libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.obj'))
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a'))
+    #libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a'))
+    libraries += [PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/lib..__HalSwiftIOBoard__driver__zephyr.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/lib..__modules__fs__fatfs.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/lib..__modules__fs__littlefs.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/lib..__modules__hal__nxp.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libapp.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libarch__arm__core__aarch32.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libarch__arm__core__aarch32__cortex_m.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libarch__common.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libboards__arm__mm_feather.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__adc.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__clock_control.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__console.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__counter.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__disk.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__memc.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__flash.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__gpio.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__i2c.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__serial.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__spi.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libdrivers__timer.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/liblib__libc__newlib.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/liblib__posix.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libsubsys__fs.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libsubsys__random.a'), PosixPath('/mnt/e/westz/swiftio/src/mm-sdk/Boards/SwiftIOFeather/lib/thumbv7em/eabi/whole/libzephyr.a')]
+    print("Frank")
+    print(sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a')))
+    print("Frank")
 
     libraries.append('--no-whole-archive')
     libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.obj'))

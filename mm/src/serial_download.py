@@ -90,7 +90,8 @@ def find_serial_device(device_name):
 def init_serial_device(device_name):
     global SERIAL_PORT
 
-    port_path = find_serial_device(device_name)
+    #port_path = find_serial_device(device_name)
+    port_path = "/dev/ttyS7"
     if port_path is None:
         log.die('plz make sure ' + device_name + ' is correctly connected to your computer!')
     else:
