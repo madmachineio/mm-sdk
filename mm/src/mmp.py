@@ -317,7 +317,9 @@ def get_swift_clang_header():
     flags = (' '.join(flags)).split(' ')
     return flags
 
-def get_swift_linker_config():
+def get_swift_linker_config(path, p_name):
+    map_path = str(path) + '/' + p_name + '.map'
+
     flags = [
         '-u,_OffsetAbsSyms',
         '-u,_ConfigAbsSyms',
@@ -328,7 +330,9 @@ def get_swift_linker_config():
         '--sort-common=descending',
         '--sort-section=alignment',
         #'--no-enum-size-warning',
-        '--print-memory-usage'
+        '--print-memory-usage',
+        '-Map',
+         map_path
     ]
     flags = ['-Xlinker ' + item for item in flags]
     flags = (' '.join(flags)).split(' ')
@@ -405,7 +409,7 @@ def get_swift_gcc_library():
 
     return flags
 
-def get_swiftc_flags(p_type):
+def get_swiftc_flags(p_type, path, p_name):
     flags = []
 
     flags += get_swift_arch()
@@ -418,7 +422,7 @@ def get_swiftc_flags(p_type):
     # Need to add '-nostdlib++' in static-executable-args.lnk
     # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
     if p_type == 'executable':
-        flags += get_swift_linker_config()
+        flags += get_swift_linker_config(path, p_name)
         flags += get_swift_linker_script()
         flags += get_swift_link_search_path()
         flags += get_swift_board_library()
@@ -427,9 +431,9 @@ def get_swiftc_flags(p_type):
 
     return flags
 
-def get_destination(p_type):
+def get_destination(p_type, path, p_name):
     cc_flags = get_cc_flags(p_type)
-    swiftc_flags = get_swiftc_flags(p_type)
+    swiftc_flags = get_swiftc_flags(p_type, path, p_name)
     sdk = str(util.get_sdk_path())
     target = get_triple()
     bin_dir = str(util.get_bin_path())
