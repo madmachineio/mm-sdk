@@ -49,16 +49,21 @@ def build_project(args):
     spm.initialize()
     p_name = spm.get_project_name()
     p_type = spm.get_project_type()
+    path = ''
+    triple = None
 
-    js_data = mmp.get_destination(p_type=p_type)
+    if p_type == 'executable':
+        triple = mmp.get_triple()
+        path = PROJECT_PATH / '.build' / triple / 'release'
+
+
+    js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
     (PROJECT_PATH / '.build').mkdir(exist_ok=True)
     destination = PROJECT_PATH / '.build/destination.json'
     destination.write_text(js_data, encoding='UTF-8')
 
     spm.build(destination=destination, p_type=p_type)
 
-    triple = mmp.get_triple()
-    path = PROJECT_PATH / '.build' / triple / 'release'
 
     if p_type == 'executable' and (path / p_name).exists():
         bin_path = mmp.create_binary(path=path, name=p_name)
@@ -193,14 +198,13 @@ def ci_build(args):
                 shutil.rmtree((PROJECT_PATH / '.build'))
             content = mmp.init_manifest(board=board, p_type=p_type, triple=triple)
             mmp.initialize(content)
-            js_data = mmp.get_destination(p_type=p_type)
+            path = PROJECT_PATH / '.build' / triple / 'release'
+            js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
             (PROJECT_PATH / '.build').mkdir(exist_ok=True)
             destination = PROJECT_PATH / '.build/destination.json'
             destination.write_text(js_data, encoding='UTF-8')
 
             spm.build(destination=destination, p_type=p_type)
-
-            path = PROJECT_PATH / '.build' / triple / 'release'
 
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
