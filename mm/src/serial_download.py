@@ -227,6 +227,8 @@ def response_verify(response, req_tag):
         return False
 
     if tag[3] != req_tag[3]:
+        log.dbg('tag[3] = ' + str(tag[3]))
+        log.dbg('req_tag[3] = ' + str(req_tag[3]))
         log.dbg('Response error: response id not equal')
         log.dbg('')
         return False
@@ -354,7 +356,7 @@ def partion_end(bin_crc):
 def partion_set_boot(name):
     payload = bytes(name, 'utf-8').ljust(64, b'\x00')
 
-    log.inf(payload.hex())
+    log.dbg(payload.hex())
 
     send_request(PARTION_SETBOOT_TAG, payload)
     response = wait_response()
@@ -495,18 +497,30 @@ def send_file2partion(file_name, partition_name):
     partion_end(file_crc)
 
 
-def get_boot_version():
+def get_board_info():
+    send_request(INFO_TAG)
+    response = wait_response()
+
+    if not response_verify(response, INFO_TAG):
+        log.die('get board info failed')
+
+    payload = response_get_payload(response)
+    info = payload.decode('utf-8')
+    log.inf('Board info: ' + info)
+
+
+def get_rom_version():
     send_request(VERSION_TAG)
     response = wait_response()
 
     if not response_verify(response, VERSION_TAG):
-        log.die('failed to get ROM version!')
+        log.die('get ROM version failed')
 
     payload = response_get_payload(response)
-    version = payload.decode('utf-8')
-    log.inf('ROM version: ' + version)
-
-
+    major = str(payload[1])
+    minor = str(payload[2])
+    patch = str(payload[3])
+    log.inf('ROM_Version: ' + major + '.' + minor + '.' + patch)
 
 def change_host_baud(new_baud):
     SERIAL_PORT.baudrate = new_baud
@@ -523,12 +537,11 @@ def sync_baud(new_baud):
     send_request(CHANGE_BAUDRATE_TAG, payload)
     response = wait_response()
     if not response_verify(response, CHANGE_BAUDRATE_TAG):
-        log.die('modify baudrate to ' + new_baud + ' failed!')
+        log.die('modify baudrate to ' + str(new_baud) + ' failed!')
     SERIAL_PORT.baudrate = new_baud
     sleep(0.01)
     SERIAL_PORT.reset_output_buffer()
     SERIAL_PORT.reset_input_buffer()
-
 
 
 def execute(address):
@@ -537,7 +550,7 @@ def execute(address):
     send_request(EXECUTE_TAG, payload)
     response = wait_response()
     if not response_verify(response, EXECUTE_TAG):
-        log.die('excute at ' + address + ' failed!') 
+        log.die('excute at ram address ' + str(address) + ' failed!') 
 
 def reboot():
     send_request(REBOOT_TAG)
@@ -595,6 +608,8 @@ def load_to_partition(serial_name, image, partition):
 
     sync_baud(3000000)
     sync()
+    get_board_info()
+    get_rom_version()
 
     serial_loader = util.get_tool_path('serial-loader')
     send_file2mem(serial_loader, 0x00000000)
@@ -620,6 +635,9 @@ def load_to_sdcard(serial_name, image, target_name):
 
     sync_baud(3000000)
     sync()
+
+    get_board_info()
+
 
     serial_loader = util.get_tool_path('serial-loader')
     send_file2mem(serial_loader, 0x00000000)

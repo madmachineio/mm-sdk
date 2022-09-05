@@ -151,13 +151,13 @@ def download_to_ram(args):
 
 
 def download_img(args):
-    if args.location == None:
+    if args.target_location == None:
         download_project_to_sd(args)
-    elif args.location == 'sd':
+    elif args.target_location == 'sd':
         download_to_sd(args)
-    elif args.location == 'partition':
+    elif args.target_location == 'partition':
         download_to_partition(args)
-    elif args.location == 'ram':
+    elif args.target_location == 'ram':
         download_to_ram(args)
 
 
@@ -325,11 +325,11 @@ def main():
     header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
     header_parser.set_defaults(func = add_header)
 
-    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
-    download_parser.add_argument('-l', '--location', type = str, choices = ['ram', 'partition', 'sd'], default = None, help = "Download type, default is MadMachine Project")
-    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "File path")
-    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target partition")
+    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s RAM/Flash/SD card')
+    download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = None, help = "Download type, default is MadMachine Project")
+    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target flash partition")
     download_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
+    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Image file path")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_img)
 
