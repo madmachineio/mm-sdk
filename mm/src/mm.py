@@ -208,9 +208,9 @@ def ci_build(args):
 
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
-                bin_path = mmp.create_binary(path, name)
+                bin_path = mmp.create_binary(path, name=p_name)
                 image_name = mmp.get_board_info('sd_image_name')
-                image.create_image(bin_path, path=path, name=image_name)
+                image.create_image(bin_path=bin_path, out_path=path, out_name=image_name)
                 source = path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
