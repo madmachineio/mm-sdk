@@ -49,16 +49,21 @@ def build_project(args):
     spm.initialize()
     p_name = spm.get_project_name()
     p_type = spm.get_project_type()
+    path = ''
+    triple = None
 
-    js_data = mmp.get_destination(p_type=p_type)
+    if p_type == 'executable':
+        triple = mmp.get_triple()
+        path = PROJECT_PATH / '.build' / triple / 'release'
+
+
+    js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
     (PROJECT_PATH / '.build').mkdir(exist_ok=True)
     destination = PROJECT_PATH / '.build/destination.json'
     destination.write_text(js_data, encoding='UTF-8')
 
     spm.build(destination=destination, p_type=p_type)
 
-    triple = mmp.get_triple()
-    path = PROJECT_PATH / '.build' / triple / 'release'
 
     if p_type == 'executable' and (path / p_name).exists():
         bin_path = mmp.create_binary(path=path, name=p_name)
@@ -146,13 +151,13 @@ def download_to_ram(args):
 
 
 def download_img(args):
-    if args.location == None:
+    if args.target_location == None:
         download_project_to_sd(args)
-    elif args.location == 'sd':
+    elif args.target_location == 'sd':
         download_to_sd(args)
-    elif args.location == 'partition':
+    elif args.target_location == 'partition':
         download_to_partition(args)
-    elif args.location == 'ram':
+    elif args.target_location == 'ram':
         download_to_ram(args)
 
 
@@ -193,20 +198,19 @@ def ci_build(args):
                 shutil.rmtree((PROJECT_PATH / '.build'))
             content = mmp.init_manifest(board=board, p_type=p_type, triple=triple)
             mmp.initialize(content)
-            js_data = mmp.get_destination(p_type=p_type)
+            path = PROJECT_PATH / '.build' / triple / 'release'
+            js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
             (PROJECT_PATH / '.build').mkdir(exist_ok=True)
             destination = PROJECT_PATH / '.build/destination.json'
             destination.write_text(js_data, encoding='UTF-8')
 
             spm.build(destination=destination, p_type=p_type)
 
-            path = PROJECT_PATH / '.build' / triple / 'release'
-
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
-                bin_path = mmp.create_binary(path, name)
+                bin_path = mmp.create_binary(path, name=p_name)
                 image_name = mmp.get_board_info('sd_image_name')
-                image.create_image(bin_path, path=path, name=image_name)
+                image.create_image(bin_path=bin_path, out_path=path, out_name=image_name)
                 source = path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
@@ -321,11 +325,11 @@ def main():
     header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
     header_parser.set_defaults(func = add_header)
 
-    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s SD card')
-    download_parser.add_argument('-l', '--location', type = str, choices = ['ram', 'partition', 'sd'], default = None, help = "Download type, default is MadMachine Project")
-    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "File path")
-    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target partition")
+    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s RAM/Flash/SD card')
+    download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = None, help = "Download type, default is MadMachine Project")
+    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target flash partition")
     download_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
+    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Image file path")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_img)
 
