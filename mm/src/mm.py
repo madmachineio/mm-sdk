@@ -37,7 +37,7 @@ def init_project(args):
     mmp_manifest.write_text(content, encoding='UTF-8')
 
 
-def build_project():
+def build_project(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
     if not mmp_manifest.is_file():
