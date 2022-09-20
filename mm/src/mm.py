@@ -2,6 +2,7 @@ import os, sys, platform, argparse, shutil
 from pathlib import Path
 import log, util, spm, mmp, download, version
 import serial_download, image
+import multiprocessing
 
 PROJECT_PATH = ''
 
@@ -36,7 +37,7 @@ def init_project(args):
     mmp_manifest.write_text(content, encoding='UTF-8')
 
 
-def build_project(args):
+def build_project():
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
     if not mmp_manifest.is_file():
@@ -73,7 +74,7 @@ def build_project(args):
     log.inf('Done!')
     
 
-def download_project_to_sd(args):
+def download_project_to_sd():
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
     if not mmp_manifest.is_file():
@@ -151,10 +152,11 @@ def download_to_ram(args):
 
 
 def download_img(args):
-    if args.target_location == None:
-        download_project_to_sd(args)
-    elif args.target_location == 'sd':
-        download_to_sd(args)
+    if args.target_location == 'sd':
+        if args.file is None:
+            download_project_to_sd()
+        else:
+            download_to_sd(args)
     elif args.target_location == 'partition':
         download_to_partition(args)
     elif args.target_location == 'ram':
@@ -325,8 +327,8 @@ def main():
     header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
     header_parser.set_defaults(func = add_header)
 
-    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s RAM/Flash/SD card')
-    download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = None, help = "Download type, default is MadMachine Project")
+    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the boards RAM/Flash/SD card')
+    download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = 'sd', help = "Download type, default is MadMachine Project")
     download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target flash partition")
     download_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
     download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Image file path")
@@ -366,8 +368,8 @@ def main():
     util.set_sdk_path(sdk_path)
     
     PROJECT_PATH = Path('.').resolve()
-    
     args.func(args)
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
