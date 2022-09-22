@@ -35,3 +35,13 @@ def create_image(bin_path, out_path, out_name, load_address=IMAGE_LOAD_ADDRESS):
     header_block = image_header.ljust(IMAGE_HEADER_CAPACITY, b'\xff')
 
     image_path.write_bytes(header_block + image_raw_binary)
+
+
+def create_swiftio_bin(bin_path, out_path, out_name):
+    image_name = out_name
+    image_path = out_path / image_name
+
+    log.inf('Creating image ' + image_name + '...')
+    image_raw_binary = bin_path.read_bytes()
+    image_crc = crc32(image_raw_binary).to_bytes(4, byteorder='little')
+    image_path.write_bytes(image_raw_binary + image_crc)

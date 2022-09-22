@@ -6,7 +6,7 @@ import util, log
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
                 'serial_number': '012345671FC90093',
-                'sd_image_name': 'swiftio.img',
+                'sd_image_name': 'swiftio.bin',
                 'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
 SWIFTIO_FEATHER = {'vid': '0x1fc9',

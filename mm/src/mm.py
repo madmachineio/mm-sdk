@@ -69,7 +69,13 @@ def build_project(args):
     if p_type == 'executable' and (path / p_name).exists():
         bin_path = mmp.create_binary(path=path, name=p_name)
         image_name = mmp.get_board_info('sd_image_name')
-        image.create_image(bin_path, path, image_name)
+        board_name = mmp.get_board_name()
+        if board_name == 'SwiftIOFeather':
+            image.create_image(bin_path, path, image_name)
+        elif board_name == 'SwiftIOBoard':
+            image.create_swiftio_bin(bin_path, path, image_name)
+        else:
+            log.die('Board name is not specified')
     
     log.inf('Done!')
     
