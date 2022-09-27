@@ -458,6 +458,10 @@ def clean(p_path):
     for file in files:
         file.unlink()
 
+    files = sorted((p_path / '.build' / 'release').glob('*.img'))
+    for file in files:
+        file.unlink()
+
 def create_binary(path, name):
     elf_path = path / name
     bin_path = path / (name + '.bin')

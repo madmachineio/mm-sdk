@@ -37,14 +37,29 @@ def init_project(args):
     mmp_manifest.write_text(content, encoding='UTF-8')
 
 
+def build_process(path, p_type, p_name, destination):
+    spm.build(destination=destination, p_type=p_type)
+
+    if p_type == 'executable' and (path / p_name).exists():
+        bin_path = mmp.create_binary(path=path, name=p_name)
+        image_name = mmp.get_board_info('sd_image_name')
+        board_name = mmp.get_board_name()
+        if board_name == 'SwiftIOFeather':
+            image.create_image(bin_path, path, image_name)
+        elif board_name == 'SwiftIOBoard':
+            image.create_swiftio_bin(bin_path, path, image_name)
+        else:
+            log.die('Board name is not specified')
+
+
 def build_project(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
     if not mmp_manifest.is_file():
         log.die('Package.mmp is required to build the project')
     
-    content = mmp_manifest.read_text()
-    mmp.initialize(content)
+    mmp_content = mmp_manifest.read_text()
+    mmp.initialize(mmp_content)
 
     mmp.clean(p_path=PROJECT_PATH)
     spm.initialize()
@@ -57,25 +72,12 @@ def build_project(args):
         triple = mmp.get_triple()
         path = PROJECT_PATH / '.build' / triple / 'release'
 
-
     js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
     (PROJECT_PATH / '.build').mkdir(exist_ok=True)
     destination = PROJECT_PATH / '.build/destination.json'
     destination.write_text(js_data, encoding='UTF-8')
 
-    spm.build(destination=destination, p_type=p_type)
-
-
-    if p_type == 'executable' and (path / p_name).exists():
-        bin_path = mmp.create_binary(path=path, name=p_name)
-        image_name = mmp.get_board_info('sd_image_name')
-        board_name = mmp.get_board_name()
-        if board_name == 'SwiftIOFeather':
-            image.create_image(bin_path, path, image_name)
-        elif board_name == 'SwiftIOBoard':
-            image.create_swiftio_bin(bin_path, path, image_name)
-        else:
-            log.die('Board name is not specified')
+    build_process(path=path, p_type=p_type, p_name=p_name, destination=destination)
     
     log.inf('Done!')
     
@@ -204,21 +206,19 @@ def ci_build(args):
             #(PROJECT_PATH / '.build').unlink(missing_ok=True)
             if (PROJECT_PATH / '.build').exists():
                 shutil.rmtree((PROJECT_PATH / '.build'))
-            content = mmp.init_manifest(board=board, p_type=p_type, triple=triple)
-            mmp.initialize(content)
+            mmp_content = mmp.init_manifest(board=board, p_type=p_type, triple=triple)
+            mmp.initialize(mmp_content)
             path = PROJECT_PATH / '.build' / triple / 'release'
+
             js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
             (PROJECT_PATH / '.build').mkdir(exist_ok=True)
             destination = PROJECT_PATH / '.build/destination.json'
             destination.write_text(js_data, encoding='UTF-8')
 
-            spm.build(destination=destination, p_type=p_type)
+            build_process(path=path, p_type=p_type, p_name=p_name, destination=destination)
 
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
-                bin_path = mmp.create_binary(path, name=p_name)
-                image_name = mmp.get_board_info('sd_image_name')
-                image.create_image(bin_path=bin_path, out_path=path, out_name=image_name)
                 source = path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
