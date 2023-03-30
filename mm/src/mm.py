@@ -133,7 +133,7 @@ def download_to_sd(args):
     else:
         file_name = path.name
 
-    download_to_sd_with_target_name('CP21', f, file_name)
+    download_to_sd_with_target_name('wch', f, file_name)
 
 def download_to_partition(args):
     if args.file is None or args.partition is None:
@@ -143,7 +143,7 @@ def download_to_partition(args):
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
 
-    serial_download.load_to_partition('CP21', f, args.partition)
+    serial_download.load_to_partition('wch', f, args.partition)
 
 def download_to_ram(args):
     if args.file is None or args.address is None:
@@ -156,7 +156,7 @@ def download_to_ram(args):
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
     
-    serial_download.load_to_ram('CP21', f, address)
+    serial_download.load_to_ram('wch', f, address)
 
 
 def download_img(args):

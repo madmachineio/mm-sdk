@@ -687,4 +687,4 @@ def test_load_to_ram(serial_name, address):
 
 
 #log.set_verbosity(log.VERBOSE_DBG)
-#test_load_to_ram('CP21', 0x80000000)
+#test_load_to_ram('wch', 0x80000000)
