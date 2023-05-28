@@ -186,7 +186,8 @@ def add_header(args):
         log.die('open file ' + str(f) + ' failed!')
 
     current_path = Path('.')
-    image.create_image(f, current_path, f.name + '.img', address)    
+    image.create_image(f, current_path, f.name + '.img', address, args.verify)    
+
 
 def ci_build(args):
     spm.initialize()
@@ -331,6 +332,7 @@ def main():
     header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Binary file path")
     header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
+    header_parser.add_argument('--verify', type = str, choices =['crc32', 'sha256'], default = 'crc32', help = 'Verify type')
     header_parser.set_defaults(func = add_header)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the boards RAM/Flash/SD card')

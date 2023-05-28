@@ -61,52 +61,52 @@ def get_uint64_big_bytes(number):
 
 def find_serial_device(device_name):
     port_list = list(serial.tools.list_ports.grep(device_name))
-    count = len(port_list)
+    port_path_list = list()
+    for port in port_list:
+        port_path_list.append(port.device)
     
-    if count == 0:
-        port_path = None
-    elif count == 1:
-        port_path = port_list[0].device
-    elif count == 2:
-        slab = None
-        seri = None
-        for port in port_list:
-            if 'slab' in port.name.lower():
-                slab = port.device
-            elif 'serial' in port.name.lower():
-                seri = port.device
-        
-        if slab != None and seri != None:
-            port_path = slab
-        else:
-            log.wrn('found more than one ' + device_name + '!')
-    else:
-        log.wrn('found more than one ' + device_name + '!')
-        port_path = None
+    if len(port_path_list) == 0:
+        port_path_list = None
 
-    return port_path
+    return port_path_list
 
 
 def init_serial_device(device_name):
     global SERIAL_PORT
 
-    port_path = find_serial_device(device_name)
-    if port_path is None:
-        log.die('plz make sure ' + device_name + ' is correctly connected to your computer!')
-    else:
-        log.inf('Found ' + device_name + ' at ' + port_path)
+    port_path_list = find_serial_device(device_name)
 
-    try:
-        SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
-    except IOError:
-        log.die('Device or resource busy! Plz make sure it is not in use!')
+    if port_path_list is None:
+        log.die('Please confirm ' + device_name + ' is correctly connected to your computer!')
+    elif len(port_path_list) > 1:
+        log.wrn('Found more than one ' + device_name)
 
-    if SERIAL_PORT is not None and SERIAL_PORT.is_open:
-        SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
-        SERIAL_PORT.reset_output_buffer()
-        SERIAL_PORT.reset_input_buffer()
-        log.inf('Open ' + device_name + ' success')
-    else:
+    for port_path in port_path_list:
+        try:
+            SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
+        except IOError:
+            log.wrn('Device or resource busy! Plz make sure it is not in use!')
+
+        if SERIAL_PORT is not None and SERIAL_PORT.is_open:
+            SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
+            SERIAL_PORT.reset_output_buffer()
+            SERIAL_PORT.reset_input_buffer()
+            if len(port_path_list) > 1:
+                reset_to_download()
+                ret = sync(3)
+                if ret:
+                    SERIAL_PORT.reset_output_buffer()
+                    SERIAL_PORT.reset_input_buffer()
+                    log.inf('Open ' + port_path + ' success')
+                    break
+                else:
+                    deinit_serial_device()
+            else:
+                log.inf('Open ' + port_path + ' success')
+        else:
+            log.wrn('Open ' + port_path + ' failed!')
+    
+    if SERIAL_PORT is None or not SERIAL_PORT.is_open:
         log.die('Open ' + device_name + ' failed!')
     
 
@@ -242,7 +242,7 @@ def response_get_payload(response):
 
 def sync(try_count = 6):
     count = 0
-    success = False
+    result = False
     previous_timeout = SERIAL_PORT.timeout
     
     SERIAL_PORT.timeout = 0.2
@@ -256,15 +256,17 @@ def sync(try_count = 6):
         response = wait_response()
 
         if response_verify(response, SYNC_TAG):
-            success = True
+            result = True
             break
         else:
             sleep(0.1)
     
     print('', flush=True)
     SERIAL_PORT.timeout = previous_timeout
-    if not success:
-        log.die('serial port synchronization failed!')
+    if not result:
+        log.wrn('serial port synchronization failed!')
+
+    return result
 
 
 
@@ -589,10 +591,12 @@ def load_to_ram(serial_name, image, address):
     init_serial_device(serial_name)
 
     reset_to_download()
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     sync_baud(3000000)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     send_file2mem(image, address)
     execute(address)
@@ -604,10 +608,13 @@ def load_to_partition(serial_name, image, partition):
     init_serial_device(serial_name)
 
     reset_to_download()
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     sync_baud(3000000)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
+
     get_board_info()
     get_rom_version()
 
@@ -616,7 +623,8 @@ def load_to_partition(serial_name, image, partition):
     execute(0x00000000)
 
     sleep(0.05)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     send_file2partion(image, partition)
 
@@ -631,10 +639,12 @@ def load_to_sdcard(serial_name, image, target_name):
     init_serial_device(serial_name)
 
     reset_to_download()
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     sync_baud(3000000)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     get_board_info()
 
@@ -644,7 +654,8 @@ def load_to_sdcard(serial_name, image, target_name):
     execute(0x00000000)
 
     sleep(0.05)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     send_file2sdcard(image, target_name)
     reboot()
