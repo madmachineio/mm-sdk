@@ -8,9 +8,12 @@ IMAGE_HEADER_CAPACITY = 1024 * 4
 
 IMAGE_START_OFFSET = IMAGE_HEADER_CAPACITY  # Default 4k offset
 IMAGE_LOAD_ADDRESS = 0x80000000             # SDRAM start address
-IMAGE_TYPE = 0x20                           # User app 0
+IMAGE_TYPE = 0x10                           # User app 0
+
+IMAGE_VERIFY_NONE   = 0x00                    # None verivy
 IMAGE_VERIFY_CRC32  = 0x01                    # CRC32
 IMAGE_VERIFY_SHA256 = 0x02                    # SHA256
+
 IMAGE_VERIFY_TYPE   = IMAGE_VERIFY_CRC32
 IMAGE_VERIFY_CAPACITY = 64                  # 64 bytes capacity
 
