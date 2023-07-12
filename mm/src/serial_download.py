@@ -276,14 +276,14 @@ def mem_begin(target_addr, target_length):
     send_request(RAM_BEGIN_TAG, payload)
     response = wait_response()
     if not response_verify(response, RAM_BEGIN_TAG):
-        log.dbg('mem_begin failed')
+        log.die('mem_begin failed')
 
 
 def mem_data(payload):
     send_request(RAM_DATA_TAG, payload)
     response = wait_response()
     if not response_verify(response, RAM_DATA_TAG):
-        log.dbg('mem_data failed')
+        log.die('mem_data failed')
 
 
 
@@ -293,7 +293,7 @@ def mem_end(bin_crc):
     send_request(RAM_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, RAM_END_TAG):
-        log.dbg('mem_end failed')
+        log.die('mem_end failed')
 
 
 def flash_begin(image_offset, image_length):
@@ -305,14 +305,14 @@ def flash_begin(image_offset, image_length):
     send_request(FLASH_BEGIN_TAG, payload)
     response = wait_response()
     if not response_verify(response, FLASH_BEGIN_TAG):
-        log.dbg('flash_begin failed!')
+        log.die('flash_begin failed!')
 
 
 def flash_data(payload):
     send_request(FLASH_DATA_TAG, payload)
     response = wait_response()
     if not response_verify(response, FLASH_DATA_TAG):
-        log.dbg('flash_data failed!')
+        log.die('flash_data failed!')
 
 
 def flash_end(bin_crc):
@@ -322,7 +322,7 @@ def flash_end(bin_crc):
     send_request(FLASH_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, FLASH_END_TAG):
-        log.dbg('flash_end failed')
+        log.die('flash_end failed')
 
 
 
@@ -335,14 +335,14 @@ def partion_begin(name, image_length):
     send_request(PARTION_BEGIN_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_BEGIN_TAG):
-        log.dbg('partion_begin failed!')
+        log.die('partion_begin failed!')
 
 
 def partion_data(payload):
     send_request(PARTION_DATA_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_DATA_TAG):
-        log.dbg('partion_data failed!')
+        log.die('partion_data failed!')
 
 
 def partion_end(bin_crc):
@@ -352,7 +352,7 @@ def partion_end(bin_crc):
     send_request(PARTION_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_END_TAG):
-        log.dbg('partion_end failed')
+        log.die('partion_end failed')
 
 
 def partion_set_boot(name):
@@ -363,7 +363,7 @@ def partion_set_boot(name):
     send_request(PARTION_SETBOOT_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_SETBOOT_TAG):
-        log.dbg('set boot partion failed!')
+        log.die('set boot partion failed!')
 
 
 
