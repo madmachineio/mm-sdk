@@ -216,7 +216,7 @@ def ci_build(args):
             destination = PROJECT_PATH / '.build/destination.json'
             destination.write_text(js_data, encoding='UTF-8')
 
-            build_process(path=path, p_type=p_type, p_name=p_name, destination=destination)
+            build_process(path=path, p_type=p_type, p_name=p_name, destination=destination, dest_data=js_data)
 
             if p_type == 'executable' and (path / p_name).exists():
                 log.inf('Building for ' + board)
