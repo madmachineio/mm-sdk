@@ -408,147 +408,31 @@ def get_swiftc_flags(p_type, path, p_name):
 
     # Need to add '-nostdlib++' in static-executable-args.lnk
     # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
-    # if p_type == 'executable':
-    #     flags += get_swift_linker_config(path, p_name)
-    #     flags += get_swift_linker_script()
-    #     flags += get_swift_link_search_path()
-    #     flags += get_swift_board_library()
-    #     flags += get_swift_gcc_library()
-
-
-    return flags
-
-
-def get_linker_config(path, p_name):
-    map_path = str(str(path) + '/' + p_name + '.map')
-
-    flags = [
-        '-u,_OffsetAbsSyms',
-        '-u,_ConfigAbsSyms',
-        '-X',
-        '-N',
-        '--gc-sections',
-        '--build-id=none',
-        '--sort-common=descending',
-        '--sort-section=alignment',
-        #'--no-enum-size-warning',
-        '--print-memory-usage',
-        '-Map',
-         map_path
-    ]
-    #flags = ['-Xlinker ' + item for item in flags]
-    #flags = (' '.join(flags)).split(' ')
-
-    return flags
-
-def get_linker_script():
-    board = get_board_name()
-    sdk_path = util.get_sdk_path()
-
-    flags = [
-        '-T',
-        str(sdk_path / 'Boards' / board / 'linker/sdram.ld')
-    ]
-    #flags = ['-Xlinker ' + item for item in flags]
-    #flags = (' '.join(flags)).split(' ')
-
-    return flags
-
-def get_linker_search_path():
-    sdk_path = util.get_sdk_path()
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
-        sub_path = '/v7e-m+dp/hard'
-    else:
-        sub_path = '/v7e-m/nofp'
-    
-    flags = [
-        'usr/lib/gcc/arm-none-eabi/10.3.1/thumb' + sub_path,
-        'usr/arm-none-eabi/lib/thumb' + sub_path
-    ]
-    flags = ['-L' + str(sdk_path / item) for item in flags]
-    flags = [item for item in flags]
-    #flags = ['-Xlinker ' + item for item in flags]
-    #flags = (' '.join(flags)).split(' ')
-
-    return flags
-
-def get_linker_board_library():
-    sdk_path = util.get_sdk_path()
-    board = get_board_name()
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
-        sub_path = 'eabihf'
-    else:
-        sub_path = 'eabi'
-
-    libraries = ['--whole-archive']
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.obj'))
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a'))
-
-    libraries.append('--no-whole-archive')
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.obj'))
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.a'))
-
-    flags = [str(item) for item in libraries]
-    #flags = ['-Xlinker ' + str(item) for item in libraries]
-    #flags = (' '.join(flags)).split(' ')
-
-    #flags += ['-lswiftCore']
-
-    return flags
-
-
-def get_linker_gcc_library():
-    libraries = [
-        '--start-group',
-        '-lstdc++',
-        '-lc',
-        '-lg',
-        '-lm',
-        '-lgcc',
-        '--end-group'
-    ]
-
-    flags = [str(item) for item in libraries]
-    #flags = ['-Xlinker ' + str(item) for item in libraries]
-    #flags = (' '.join(flags)).split(' ')
-
-    return flags
-
-
-def get_linker_flags(p_type, path, p_name):
-    flags = []
-
     if p_type == 'executable':
-        flags += get_linker_config(path, p_name)
-        flags += get_linker_script()
-        flags += get_linker_search_path()
-        flags += get_linker_board_library()
-        flags += get_linker_gcc_library()
-    
-    return flags
+        flags += get_swift_linker_config(path, p_name)
+        flags += get_swift_linker_script()
+        flags += get_swift_link_search_path()
+        flags += get_swift_board_library()
+        flags += get_swift_gcc_library()
 
+
+    return flags
 
 def get_destination(p_type, path, p_name):
-    sdk = str(util.get_sdk_path())
-    bin_dir = str(util.get_bin_path())
-    target = get_triple()
     cc_flags = get_cc_flags(p_type)
     swiftc_flags = get_swiftc_flags(p_type, path, p_name)
-    linker_flags = get_linker_flags(p_type, path, p_name)
-    
+    sdk = str(util.get_sdk_path())
+    target = get_triple()
+    bin_dir = str(util.get_bin_path())
 
     destination_dic = {
-        'version': 2,
-        'sdkRootDir': sdk,
-        'toolchainBinDir': bin_dir,
-        'hostTriples': [],
-        'targetTriples': [target],
-        'extraCCFlags': cc_flags,
-        'extraCXXFlags': cc_flags,
-        'extraSwiftCFlags': swiftc_flags,
-        'extraLinkerFlags': linker_flags
+        'extra-cc-flags': cc_flags,
+        'extra-cpp-flags': cc_flags,
+        'extra-swiftc-flags': swiftc_flags,
+        'sdk': sdk,
+        'target': target,
+        'toolchain-bin-dir': bin_dir,
+        'version': 1
     }
 
     js_text = json.dumps(destination_dic, indent = 4)

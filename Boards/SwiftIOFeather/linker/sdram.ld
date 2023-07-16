@@ -255,48 +255,54 @@ _vector_end = .;
 
    . = ALIGN(4);
    __start_swift5_reflstr = .;
-   *(swift5_reflstr)
+   *(swift5_reflstr*)
    __stop_swift5_reflstr = .;
 
    . = ALIGN(4);
    __start_swift5_fieldmd = .;
-   *(swift5_fieldmd)
+   *(swift5_fieldmd*)
    __stop_swift5_fieldmd = .;
 
    . = ALIGN(4);
    __start_swift5_assocty = .;
-   *(swift5_assocty)
+   *(swift5_assocty*)
    __stop_swift5_assocty = .;
 
    . = ALIGN(4);
    __start_swift5_replace = .;
-   *(swift5_replace)
+   *(swift5_replace*)
    __stop_swift5_replace = .;
 
    . = ALIGN(4);
    __start_swift5_replac2 = .;
-   *(swift5_replac2)
+   *(swift5_replac2*)
    __stop_swift5_replac2 = .;
 
    . = ALIGN(4);
    __start_swift5_builtin = .;
-   *(swift5_builtin)
+   *(swift5_builtin*)
    __stop_swift5_builtin = .;
 
    . = ALIGN(4);
    __start_swift5_capture = .;
-   *(swift5_capture)
+   *(swift5_capture*)
    __stop_swift5_capture = .;
 
    . = ALIGN(4);
    __start_swift5_mpenum = .;
-   *(swift5_capture)
+   *(swift5_mpenum*)
    __stop_swift5_mpenum = .;
 
    . = ALIGN(4);
    __start_swift5_accessible_functions = .;
-   *(swift5_capture)
+   *(swift5_accessible_functions*)
    __stop_swift5_accessible_functions = .;
+
+   . = ALIGN(4);
+   __start_swift5_runtime_attributes = .;
+   *(swift5_runtime_attributes*)
+   __stop_swift5_runtime_attributes = .;
+
  } > SRAM
    
  . = 0x80000000;

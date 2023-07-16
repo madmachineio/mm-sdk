@@ -37,8 +37,8 @@ def init_project(args):
     mmp_manifest.write_text(content, encoding='UTF-8')
 
 
-def build_process(path, p_type, p_name, destination):
-    spm.build(destination=destination, p_type=p_type)
+def build_process(path, p_type, p_name, destination, dest_data):
+    spm.build(p_type=p_type, destination=destination, dest_data=dest_data)
 
     if p_type == 'executable' and (path / p_name).exists():
         bin_path = mmp.create_binary(path=path, name=p_name)
@@ -77,7 +77,7 @@ def build_project(args):
     destination = PROJECT_PATH / '.build/destination.json'
     destination.write_text(js_data, encoding='UTF-8')
 
-    build_process(path=path, p_type=p_type, p_name=p_name, destination=destination)
+    build_process(path=path, p_type=p_type, p_name=p_name, destination=destination, dest_data=js_data)
     
     log.inf('Done!')
     

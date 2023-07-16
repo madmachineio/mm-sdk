@@ -127,7 +127,7 @@ def get_project_type():
     return project_tpye
 
 
-def build(destination, p_type):
+def build(p_type, destination, dest_data):
     flags = [
         util.get_tool('swift-build'),
         '-c release',
@@ -137,6 +137,9 @@ def build(destination, p_type):
 
     if p_type == 'executable':
         log.inf('Building executable...')
+        linker_flags = json.loads(dest_data).get('extraLinkerFlags')
+        linker_flags = ['-Xlinker ' + item for item in linker_flags]
+        flags += linker_flags
     else:
         log.inf('Building library...')
 
