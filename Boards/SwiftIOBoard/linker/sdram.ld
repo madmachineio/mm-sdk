@@ -142,6 +142,7 @@ _vector_end = .;
   KEEP(*(SORT(.app_regions.*)));
   __app_shmem_regions_end = .;
  } > SRAM
+ net_socket_register_area : SUBALIGN(4) { _net_socket_register_list_start = .; KEEP(*(SORT_BY_NAME(._net_socket_register.static.*))); _net_socket_register_list_end = .; } > SRAM
  bt_l2cap_fixed_chan_area : SUBALIGN(4) { _bt_l2cap_fixed_chan_list_start = .; KEEP(*(SORT_BY_NAME(._bt_l2cap_fixed_chan.static.*))); _bt_l2cap_fixed_chan_list_end = .; } > SRAM
  bt_gatt_service_static_area : SUBALIGN(4) { _bt_gatt_service_static_list_start = .; KEEP(*(SORT_BY_NAME(._bt_gatt_service_static.static.*))); _bt_gatt_service_static_list_end = .; } > SRAM
  k_p4wq_initparam_area : SUBALIGN(4) { _k_p4wq_initparam_list_start = .; KEEP(*(SORT_BY_NAME(._k_p4wq_initparam.static.*))); _k_p4wq_initparam_list_end = .; } > SRAM
@@ -254,48 +255,54 @@ _vector_end = .;
 
    . = ALIGN(4);
    __start_swift5_reflstr = .;
-   *(swift5_reflstr)
+   *(swift5_reflstr*)
    __stop_swift5_reflstr = .;
 
    . = ALIGN(4);
    __start_swift5_fieldmd = .;
-   *(swift5_fieldmd)
+   *(swift5_fieldmd*)
    __stop_swift5_fieldmd = .;
 
    . = ALIGN(4);
    __start_swift5_assocty = .;
-   *(swift5_assocty)
+   *(swift5_assocty*)
    __stop_swift5_assocty = .;
 
    . = ALIGN(4);
    __start_swift5_replace = .;
-   *(swift5_replace)
+   *(swift5_replace*)
    __stop_swift5_replace = .;
 
    . = ALIGN(4);
    __start_swift5_replac2 = .;
-   *(swift5_replac2)
+   *(swift5_replac2*)
    __stop_swift5_replac2 = .;
 
    . = ALIGN(4);
    __start_swift5_builtin = .;
-   *(swift5_builtin)
+   *(swift5_builtin*)
    __stop_swift5_builtin = .;
 
    . = ALIGN(4);
    __start_swift5_capture = .;
-   *(swift5_capture)
+   *(swift5_capture*)
    __stop_swift5_capture = .;
 
    . = ALIGN(4);
    __start_swift5_mpenum = .;
-   *(swift5_capture)
+   *(swift5_mpenum*)
    __stop_swift5_mpenum = .;
 
    . = ALIGN(4);
    __start_swift5_accessible_functions = .;
-   *(swift5_capture)
+   *(swift5_accessible_functions*)
    __stop_swift5_accessible_functions = .;
+
+   . = ALIGN(4);
+   __start_swift5_runtime_attributes = .;
+   *(swift5_runtime_attributes*)
+   __stop_swift5_runtime_attributes = .;
+
  } > SRAM
    
  . = 0x80000000;
@@ -365,6 +372,7 @@ __ramfunc_load_start = LOADADDR(.ramfunc);
   _net_buf_pool_list = .;
   KEEP(*(SORT_BY_NAME("._net_buf_pool.static.*")))
  } > SRAM
+ net_if_area : SUBALIGN(4) { _net_if_list_start = .; KEEP(*(SORT_BY_NAME(._net_if.static.*))); _net_if_list_end = .; } > SRAM net_if_dev_area : SUBALIGN(4) { _net_if_dev_list_start = .; KEEP(*(SORT_BY_NAME(._net_if_dev.static.*))); _net_if_dev_list_end = .; } > SRAM net_l2_area : SUBALIGN(4) { _net_l2_list_start = .; KEEP(*(SORT_BY_NAME(._net_l2.static.*))); _net_l2_list_end = .; } > SRAM eth_bridge_area : SUBALIGN(4) { _eth_bridge_list_start = .; KEEP(*(SORT_BY_NAME(._eth_bridge.static.*))); _eth_bridge_list_end = .; } > SRAM
  .gcc_except_table : ONLY_IF_RW
  {
  *(.gcc_except_table .gcc_except_table.*)
