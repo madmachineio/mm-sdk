@@ -1,0 +1,65 @@
+name: build
+
+
+on:
+  push:
+    branches:
+      - main
+      - 'fix/**'
+      - 'feature/**'
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+  schedule:
+    - cron: '1 0 * * 4'
+
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-11]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Check action type
+        run: |
+          echo "OS: $RUNNER_OS"
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Commit: $GITHUB_SHA"
+          echo "Branch: `git rev-parse --abbrev-ref HEAD`"
+
+      - name: Prepare Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Prepare requirements
+        id: prepare-requirements
+        run: |
+          echo "Prepare python requirements on $RUNNER_OS"
+          cd $GITHUB_WORKSPACE
+          cd ./mm/src
+          pip3 install -r requirements.txt
+      
+      - name: Build python project
+        id: build-project
+        run: |
+          cd $GITHUB_WORKSPACE
+          mkdir exe
+          cd ./mm/src
+          pyinstaller ./mm.py
+          mv dist/mm/* $GITHUB_WORKSPACE/exe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: Binary build on ${{ matrix.os }}
+          path: |
+            exe
+          retention-days: 7
