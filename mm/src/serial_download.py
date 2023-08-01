@@ -664,7 +664,7 @@ def load_to_sdcard(serial_name, image, target_name):
 
 
 
-IMAGE1 = Path('./feather.img')
+IMAGE1 = Path('./micro.img')
 IMAGE2 = Path('./clear_to_AA.bin')
 
 def test_load_to_ram(serial_name, address):

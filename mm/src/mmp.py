@@ -9,10 +9,10 @@ SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'sd_image_name': 'swiftio.bin',
                 'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
-SWIFTIO_FEATHER = {'vid': '0x1fc9',
+SWIFTIO_MICRO = {'vid': '0x1fc9',
                     'pid': '0x0095',
                     'serial_number': '012345671FC90095',
-                    'sd_image_name': 'feather.img',
+                    'sd_image_name': 'micro.img',
                     'usb2serial_device': 'wch'}
 
 
@@ -22,7 +22,7 @@ DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
 # Those project files in the dependent libraries would be IGNORED
 
 # Specify the board name below
-# There are "SwiftIOBoard" and "SwiftIOFeather" now
+# There are "SwiftIOBoard" and "SwiftIOMicro" now
 board = "{name}"
 
 # Specifiy the target triple below
@@ -90,8 +90,8 @@ def get_board_info(info):
     board = TOML_CONTENT.get('board')
     if board == 'SwiftIOBoard':
         dic = SWIFTIO_BOARD
-    elif board == 'SwiftIOFeather':
-        dic = SWIFTIO_FEATHER
+    elif board == 'SwiftIOMicro':
+        dic = SWIFTIO_MICRO
     else:
         log.die('unknown board')
     

@@ -44,7 +44,7 @@ def build_process(path, p_type, p_name, destination, dest_data):
         bin_path = mmp.create_binary(path=path, name=p_name)
         image_name = mmp.get_board_info('sd_image_name')
         board_name = mmp.get_board_name()
-        if board_name == 'SwiftIOFeather':
+        if board_name == 'SwiftIOMicro':
             image.create_image(bin_path, path, image_name)
         elif board_name == 'SwiftIOBoard':
             image.create_swiftio_bin(bin_path, path, image_name)
@@ -107,7 +107,7 @@ def download_project_to_sd():
     
     serial_name = mmp.get_board_info('usb2serial_device')
 
-    if board_name == 'SwiftIOFeather':
+    if board_name == 'SwiftIOMicro':
         serial_download.load_to_sdcard(serial_name, image, file_name)
     elif board_name == 'SwiftIOBoard':
         download.darwin_download(source=image)
@@ -195,7 +195,7 @@ def ci_build(args):
     p_type = spm.get_project_type()
 
     if p_type == 'executable':
-        boards = ['SwiftIOFeather', 'SwiftIOBoard']
+        boards = ['SwiftIOMicro', 'SwiftIOBoard']
     else:
         boards = ['']
 
@@ -320,7 +320,7 @@ def main():
     init_parser = subparsers.add_parser('init', help = 'Initiaize a new project')
     init_parser.add_argument('-t', '--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
     init_parser.add_argument('--name', type = str, help = 'Initiaize the new project with a specified name, otherwise the project name depends on the current directory name')
-    init_parser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOFeather'], help = 'Generate MadMachine project file by passing this parameter')
+    init_parser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOMicro'], help = 'Generate MadMachine project file by passing this parameter')
     init_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     init_parser.set_defaults(func = init_project)
 
