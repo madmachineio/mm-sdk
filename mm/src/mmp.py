@@ -118,7 +118,6 @@ def get_c_arch():
 def get_c_predefined():
     flags = [
         '-nostdinc',
-        '--rtlib=libgcc',
         '-Wno-unused-command-line-argument',
         '-D__MADMACHINE__'
     ]
