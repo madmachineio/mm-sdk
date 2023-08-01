@@ -89,11 +89,11 @@ Download and unzip the sdk to the directory `~`
 cd ~/Documents
 mkdir DemoProgram
 cd DemoProgram
-~/mm-sdk/usr/mm/mm init -b SwiftIOFeather
+~/mm-sdk/usr/mm/mm init -b SwiftIOMicro
 ```
 or
 ```shell
-python3 ~/mm-sdk/mm/src/mm.py init -b SwiftIOFeather
+python3 ~/mm-sdk/mm/src/mm.py init -b SwiftIOMicro
 ```
 
 The `Package.swift` should look like below
@@ -141,14 +141,14 @@ python3 ~/mm-sdk/mm/src/mm.py build
 
 ## Download an executable to the board
 
-After a successful building, there would be `.build/release/feather.bin` in your project directory. Note that the `.build` directory is hiden by default.
+After a successful building, there would be `.build/release/micro.bin` in your project directory. Note that the `.build` directory is hiden by default.
 
 Follow those steps to download the executable:
 
 1. Insert SD card to the board and connect the it to your computer through an USB cable
 2. Press the **Download** button and wait the onboard RGB LED turns to static **green**)
 2. A USB disk drive should be mounted on your computer
-3. Copy the `feather.bin` to the SD card root directory
+3. Copy the `micro.bin` to the SD card root directory
 4. Eject the USB drive and the program would run automatically
 
 ## Download an executable to the board using command(Only on macOS now)
