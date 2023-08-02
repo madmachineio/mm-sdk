@@ -82,6 +82,36 @@ def build_project(args):
     log.inf('Done!')
     
 
+def download_project_to_partition(partition):
+    mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+
+    if not mmp_manifest.is_file():
+        log.die('Package.mmp is required to download the project')
+
+    content = mmp_manifest.read_text()
+    mmp.initialize(content)
+
+    board_name = mmp.get_board_name()
+    if board_name is None:
+        log.die('Board name is not specified')
+
+    if board_name != 'SwiftIOMicro':
+        log.die('Download to partition is not supported on SwiftIOBoard')
+
+    file_name = mmp.get_board_info('sd_image_name')
+    image = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+
+    if not image.is_file():
+        log.die('Cannot find ' + file_name)
+
+    serial_name = mmp.get_board_info('usb2serial_device')
+
+    if board_name == 'SwiftIOMicro':
+        serial_download.load_to_partition(serial_name, image, partition)
+
+    log.inf('Done!')
+
+
 def download_project_to_sd():
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
 
@@ -166,7 +196,10 @@ def download_img(args):
         else:
             download_to_sd(args)
     elif args.target_location == 'partition':
-        download_to_partition(args)
+        if args.file is None:
+            download_project_to_partition(args.partition)
+        else:
+            download_to_partition(args)
     elif args.target_location == 'ram':
         download_to_ram(args)
 
@@ -336,9 +369,9 @@ def main():
     header_parser.set_defaults(func = add_header)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the boards RAM/Flash/SD card')
-    download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = 'sd', help = "Download type, default is MadMachine Project")
-    download_parser.add_argument('-p', '--partition', type = str, default = None, help = "Target flash partition")
-    download_parser.add_argument('-a', '--address', type = str, default = None, help = "Target RAM address")
+    download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = 'partition', help = "Download type, default is MadMachine Project")
+    download_parser.add_argument('-p', '--partition', type = str, default = 'userapp', help = "Target flash partition")
+    download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
     download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Image file path")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_img)
