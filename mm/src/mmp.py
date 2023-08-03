@@ -228,7 +228,9 @@ def get_swift_predefined(p_type):
         '-Xfrontend',
         '-data-sections',
         '-Xcc',
-        '-D__MADMACHINE__'
+        '-D__MADMACHINE__',
+        '-Xfrontend',
+        '-disable-implicit-string-processing-module-import'
     ]
 
     if p_type == 'executable':
