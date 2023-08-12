@@ -14,10 +14,10 @@ IMAGE_VERIFY_NONE   = 0x00                    # None verivy
 IMAGE_VERIFY_CRC32  = 0x01                    # CRC32
 IMAGE_VERIFY_SHA256 = 0x02                    # SHA256
 
-IMAGE_VERIFY_TYPE   = IMAGE_VERIFY_CRC32
+IMAGE_VERIFY_TYPE   = IMAGE_VERIFY_SHA256
 IMAGE_VERIFY_CAPACITY = 64                  # 64 bytes capacity
 
-def create_image(bin_path, out_path, out_name, load_address=IMAGE_LOAD_ADDRESS, verify='crc32'):
+def create_image(bin_path, out_path, out_name, load_address=IMAGE_LOAD_ADDRESS, verify='sha256'):
     image_name = out_name
     image_path = out_path / image_name
 
