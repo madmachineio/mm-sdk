@@ -370,7 +370,7 @@ def main():
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the boards RAM/Flash/SD card')
     download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = 'partition', help = "Download type, default is MadMachine Project")
-    download_parser.add_argument('-p', '--partition', type = str, default = 'userapp', help = "Target flash partition")
+    download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition")
     download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
     download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Image file path")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
