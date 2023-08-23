@@ -21,7 +21,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-11]
+        os: [windows-2019]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -32,7 +32,8 @@ jobs:
           echo "OS: $RUNNER_OS"
           echo "Repository: $GITHUB_REPOSITORY"
           echo "Commit: $GITHUB_SHA"
-          echo "Branch: `git rev-parse --abbrev-ref HEAD`"
+          $BRANCH_NAME = git rev-parse --abbrev-ref HEAD
+          echo "Branch: $BRANCH_NAME"
 
       - name: Prepare Python environment
         uses: actions/setup-python@v4
