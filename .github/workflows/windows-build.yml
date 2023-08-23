@@ -1,4 +1,4 @@
-name: build
+name: windows-build
 
 
 on:
@@ -45,7 +45,7 @@ jobs:
         run: |
           echo "Prepare python requirements on $RUNNER_OS"
           cd $GITHUB_WORKSPACE
-          cd ./mm/src
+          cd .\mm\src
           pip3 install -r requirements.txt
       
       - name: Build python project
@@ -53,9 +53,9 @@ jobs:
         run: |
           cd $GITHUB_WORKSPACE
           mkdir exe
-          cd ./mm/src
-          pyinstaller ./mm.py
-          mv dist/mm/* $GITHUB_WORKSPACE/exe
+          cd .\mm\src
+          pyinstaller .\mm.py
+          mv .\dist\mm\* $GITHUB_WORKSPACE\exe
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
