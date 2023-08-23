@@ -21,7 +21,7 @@ jobs:
     name: Build on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-11]
+        os: [ubuntu-22.04, macos-11, windows-2019]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
@@ -59,7 +59,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v3
         with:
-          name: Binary build on ${{ matrix.os }}
+          name: mm-script-executable-${{ matrix.os }}
           path: |
             exe
           retention-days: 7
