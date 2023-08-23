@@ -44,7 +44,7 @@ jobs:
         id: prepare-requirements
         run: |
           echo "Prepare python requirements on $RUNNER_OS"
-          cd $GITHUB_WORKSPACE
+          cd "$GITHUB_WORKSPACE"
           cd .\mm\src
           pip3 install -r requirements.txt
       
