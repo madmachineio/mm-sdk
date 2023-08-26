@@ -134,9 +134,9 @@ def build(p_type, destination, dest_data):
 
     if p_type == 'executable':
         log.inf('Building executable...')
-        linker_flags = json.loads(dest_data).get('extraLinkerFlags')
-        linker_flags = ['-Xlinker ' + item for item in linker_flags]
-        flags += linker_flags
+        #linker_flags = json.loads(dest_data).get('extraLinkerFlags')
+        #linker_flags = ['-Xlinker ' + item for item in linker_flags]
+        #flags += linker_flags
     else:
         log.inf('Building library...')
 
