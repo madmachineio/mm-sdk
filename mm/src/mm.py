@@ -190,6 +190,52 @@ def download_to_ram(args):
 
 
 def download_img(args):
+    if args.type == 'sd':
+        if args.file is None:
+            download_project_to_sd()
+        else:
+            download_to_sd(args)
+    elif args.type == 'partition':
+        if args.file is None:
+            download_project_to_partition(args.partition)
+        else:
+            download_to_partition(args)
+    elif args.type == 'ram':
+        download_to_ram(args)
+
+
+def sync_resources(args):
+    source = Path(args.source)
+    destination = Path(args.destination)
+
+    if source.is_absolute():
+        log.die('Not support absolute resource right now')
+
+    if not destination.is_absolute():
+        log.die('Destination must be a absolute path')
+
+    if not source.is_dir():
+        log.die(str(args.source) + ' directory not exist')
+
+    log.dbg('Destination: ' + str(args.destination))
+
+    files = []
+    for item in list(source.glob('**/*')):
+        if item.is_file():
+            files.append(item)
+
+    if len(files) == 0:
+        log.die(str(args.source) + ' is empty')
+
+    if args.type == 'sync':
+        serial_download.sync_to_filesystem('wch', True, source, destination, files)
+
+    for file in files:
+        log.dbg(str(file))
+    
+    
+    
+
     if args.target_location == 'sd':
         if args.file is None:
             download_project_to_sd()
@@ -202,7 +248,6 @@ def download_img(args):
             download_to_partition(args)
     elif args.target_location == 'ram':
         download_to_ram(args)
-
 
 def add_header(args):
     if args.file is None:
@@ -369,12 +414,19 @@ def main():
     header_parser.set_defaults(func = add_header)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the boards RAM/Flash/SD card')
-    download_parser.add_argument('-t', '--target_location', type = str, choices = ['ram', 'partition', 'sd'], default = 'partition', help = "Download type, default is MadMachine Project")
+    download_parser.add_argument('-t', '--type', type = str, choices = ['ram', 'partition', 'sd'], default = 'partition', help = "Download type, default is Flash partition")
     download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition")
     download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
     download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Image file path")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
     download_parser.set_defaults(func = download_img)
+
+    sync_parser = subparsers.add_parser('sync', help = 'Sync the resources to the Flash/SD card filesystem')
+    sync_parser.add_argument('-t', '--type', type = str, choices = ['sync', 'override'], default = 'sync', help = "Sync the source to the destination or override the destination, default is Flash partition")
+    sync_parser.add_argument('-s', '--source', type = Path, default = 'Resources', help = "Source path")
+    sync_parser.add_argument('-d', '--destination', type = Path, default = '/SD:', help = "Destination path")
+    sync_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    sync_parser.set_defaults(func = sync_resources)
 
     clean_parser = subparsers.add_parser('clean', help = 'Clean project')
     clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all compilation outputs")

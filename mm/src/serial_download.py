@@ -42,7 +42,11 @@ FS_BEGIN_TAG        = 0x40
 FS_DATA_TAG         = 0x41
 FS_END_TAG          = 0x42
 
-
+FS_MKDIR_TAG        = 0x50
+FS_RM_TAG           = 0x51
+FS_FILE_BEGIN_TAG   = 0x52
+FS_FILE_DATA_TAG    = 0x53
+FS_FILE_END_TAG     = 0x54
 
 
 def get_uint32_big_bytes(number):
@@ -400,6 +404,85 @@ def sdcard_end(bin_crc):
 
 
 
+
+def fs_file_begin(image_length, image_path):
+    image_length = get_uint32_big_bytes(image_length)
+    image_path = bytes(image_path, 'utf-8')
+
+    payload = image_length + image_path
+
+    send_request(FS_FILE_BEGIN_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_FILE_BEGIN_TAG):
+        log.die('fs_file_begin failed!')
+
+
+def fs_file_data(payload):
+    send_request(FS_FILE_DATA_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_FILE_DATA_TAG):
+        log.die('fs_file_data failed!')
+
+
+def fs_file_end(bin_crc):
+    bin_crc = get_uint32_big_bytes(bin_crc)
+
+    payload = bin_crc
+
+    send_request(FS_FILE_END_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_FILE_END_TAG):
+        log.die('fs_file_end failed!')
+
+
+
+def mkdir(path, nouse):
+    payload = bytes(path, 'utf-8')
+    send_request(FS_MKDIR_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_MKDIR_TAG):
+        log.die('mkdir at ' + path + ' failed!')
+
+def rm(path):
+    log.inf('Deleteing ' + str(path))
+    payload = bytes(path, 'utf-8')
+    log.dbg(list(payload))
+
+    send_request(FS_RM_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_RM_TAG):
+        log.wrn('Delete ' + path + ' failed')
+    else:
+        log.inf('Delete ' + path + ' success')
+
+def cp(src, dst):
+    payload = bytes(dst, 'utf-8')
+    log.inf('Copy ' + src + ' to ' + dst + '...')
+    log.dbg(list(payload))
+    f = Path(src)
+
+    if not f.is_file():
+        log.die('open file ' + str(f) + ' failed!')
+
+    file_length = f.stat().st_size
+    file_bytes = f.read_bytes()
+    file_crc = crc32(file_bytes)
+    process_bar = tqdm(total=file_length, unit='B', unit_scale=True)
+
+    fs_file_begin(file_length, dst)
+
+    offset = 0
+    while offset < file_length:
+        payload = file_bytes[offset : offset + MAX_PAYLOAD_LENGTH]
+        offset += MAX_PAYLOAD_LENGTH
+        fs_file_data(payload)
+        process_bar.update(len(payload))
+
+    process_bar.close()
+    fs_file_end(file_crc)
+
+
+
 def send_file2mem(file_name, addr, bar=False):
     f = Path(file_name)
 
@@ -661,6 +744,36 @@ def load_to_sdcard(serial_name, image, target_name):
     reboot()
 
     deinit_serial_device()
+
+
+
+
+def sync_to_filesystem(serial_name, delete, source, destination, files):
+    init_serial_device(serial_name)
+
+    reset_to_download()
+    if sync() == False:
+        log.die("Sync failed!")
+
+    sync_baud(3000000)
+    if sync() == False:
+        log.die("Sync failed!")
+
+    serial_loader = util.get_tool_path('serial-loader')
+    send_file2mem(serial_loader, 0x00000000)
+    execute(0x00000000)
+
+    sleep(0.05)
+    if sync() == False:
+        log.die("Sync failed!")
+
+    # if delete:
+    #     rm(str(destination / source))
+    
+    for file in files:
+        des = destination / file
+        cp(str(file), str(des))
+
 
 
 
