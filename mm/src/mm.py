@@ -236,18 +236,18 @@ def sync_resources(args):
     
     
 
-    if args.target_location == 'sd':
-        if args.file is None:
-            download_project_to_sd()
-        else:
-            download_to_sd(args)
-    elif args.target_location == 'partition':
-        if args.file is None:
-            download_project_to_partition(args.partition)
-        else:
-            download_to_partition(args)
-    elif args.target_location == 'ram':
-        download_to_ram(args)
+    #if args.target_location == 'sd':
+    #    if args.file is None:
+    #        download_project_to_sd()
+    #    else:
+    #       download_to_sd(args)
+    #elif args.target_location == 'partition':
+    #    if args.file is None:
+    #        download_project_to_partition(args.partition)
+    #    else:
+    #        download_to_partition(args)
+    #elif args.target_location == 'ram':
+    #    download_to_ram(args)
 
 def add_header(args):
     if args.file is None:

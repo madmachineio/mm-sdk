@@ -9,7 +9,7 @@ import log, util
 
 SERIAL_PORT = None
 SERIAL_INIT_BAUDRATE = 115200
-SERIAL_PORT_READ_TIMEOUT = 2
+SERIAL_PORT_READ_TIMEOUT = 5
 
 MAX_PAYLOAD_LENGTH = 65536
 
@@ -374,7 +374,7 @@ def partion_set_boot(name):
 
 def sdcard_begin(image_length, image_path):
     image_length = get_uint32_big_bytes(image_length)
-    image_path = bytes(image_path, 'utf-8')
+    image_path = bytes(image_path, 'utf-8') + b'\x00'
 
     payload = image_length + image_path
 
@@ -407,7 +407,7 @@ def sdcard_end(bin_crc):
 
 def fs_file_begin(image_length, image_path):
     image_length = get_uint32_big_bytes(image_length)
-    image_path = bytes(image_path, 'utf-8')
+    image_path = bytes(image_path, 'utf-8') + b'\x00'
 
     payload = image_length + image_path
 
@@ -437,7 +437,7 @@ def fs_file_end(bin_crc):
 
 
 def mkdir(path, nouse):
-    payload = bytes(path, 'utf-8')
+    payload = bytes(path, 'utf-8') + b'\x00'
     send_request(FS_MKDIR_TAG, payload)
     response = wait_response()
     if not response_verify(response, FS_MKDIR_TAG):
@@ -445,7 +445,7 @@ def mkdir(path, nouse):
 
 def rm(path):
     log.inf('Deleteing ' + str(path))
-    payload = bytes(path, 'utf-8')
+    payload = bytes(path, 'utf-8') + b'\x00'
     log.dbg(list(payload))
 
     send_request(FS_RM_TAG, payload)
@@ -456,7 +456,7 @@ def rm(path):
         log.inf('Delete ' + path + ' success')
 
 def cp(src, dst):
-    payload = bytes(dst, 'utf-8')
+    payload = bytes(dst, 'utf-8') + b'\x00'
     log.inf('Copy ' + src + ' to ' + dst + '...')
     log.dbg(list(payload))
     f = Path(src)
