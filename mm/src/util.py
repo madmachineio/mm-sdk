@@ -31,7 +31,9 @@ def set_sdk_path(path, save=False, env_name=None):
     SDK_ENV = os.environ.copy()
 
     if save and env_name is not None:
+        log.inf('save')
         SDK_ENV[env_name] = str(path)
+        print(SDK_ENV)
 
 def get_sdk_path():
     return SDK_PATH

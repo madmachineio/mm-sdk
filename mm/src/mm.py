@@ -460,7 +460,7 @@ def main():
     sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
 
     if (sdk_path / 'usr' / 'Developer').exists():
-        util.set_sdk_path(sdk_path, save=True, env_name='SDK_ENV_PATH')
+        util.set_sdk_path(sdk_path, save=True, env_name='MM_SDK_PATH')
     else:
         util.set_sdk_path(sdk_path)
     
