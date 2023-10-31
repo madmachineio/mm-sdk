@@ -20,7 +20,7 @@ def quote_string(path):
     return '"%s"' % str(path)
 
 
-def set_sdk_path(path):
+def set_sdk_path(path, save=False, env_name=None):
     global SDK_ENV
     global SDK_PATH
 
@@ -29,7 +29,9 @@ def set_sdk_path(path):
 
     SDK_PATH = path
     SDK_ENV = os.environ.copy()
-    SDK_ENV['MM_SDK_PATH'] = str(path)
+
+    if save and env_name is not None:
+        SDK_ENV[env_name] = str(path)
 
 def get_sdk_path():
     return SDK_PATH

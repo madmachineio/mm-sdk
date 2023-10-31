@@ -458,7 +458,11 @@ def main():
         log.set_verbosity(log.VERBOSE_DBG)
 
     sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
-    util.set_sdk_path(sdk_path)
+
+    if (sdk_path / 'usr' / 'Developer').exists():
+        util.set_sdk_path(sdk_path, save=True, env_name='SDK_ENV_PATH')
+    else:
+        util.set_sdk_path(sdk_path)
     
     PROJECT_PATH = Path('.').resolve()
     args.func(args)
