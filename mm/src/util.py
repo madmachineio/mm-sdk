@@ -1,10 +1,10 @@
-import subprocess
+import os, subprocess
 from pathlib import Path
 import log
 
 
 
-
+SDK_ENV = ''
 SDK_PATH = ''
 
 tool_set = {
@@ -21,11 +21,15 @@ def quote_string(path):
 
 
 def set_sdk_path(path):
+    global SDK_ENV
     global SDK_PATH
 
     if not path.is_dir():
         log.die(path + "doesn't exists")
+
     SDK_PATH = path
+    SDK_ENV = os.environ.copy()
+    SDK_ENV['MM_SDK_PATH'] = str(path)
 
 def get_sdk_path():
     return SDK_PATH
@@ -56,7 +60,7 @@ def command(flags):
 
     log.inf(cmd, prefix=False, level=log.VERBOSE_DBG)
 
-    p = subprocess.Popen(cmd, shell=True)
+    p = subprocess.Popen(cmd, shell=True, env=SDK_ENV)
     ret = p.wait()
 
     return ret
@@ -72,12 +76,13 @@ def run_command(flags):
 
     log.inf(cmd, prefix=False, level=log.VERBOSE_DBG)
 
-    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=SDK_ENV)
     ret = p.wait()
     cmd_out, cmd_err = p.communicate()
     if ret:
         log.die(cmd_err.decode('utf-8'), prefix=False)
     
+    log.inf(cmd_out.decode('utf-8'), prefix=False, level=log.VERBOSE_DBG)
     return cmd_out.decode('utf-8')
 
 
