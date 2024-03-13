@@ -10,6 +10,7 @@ import log, util
 SERIAL_PORT = None
 SERIAL_INIT_BAUDRATE = 115200
 SERIAL_PORT_READ_TIMEOUT = 5
+SERIAL_PORT_FS_TIMEOUT = 30
 
 MAX_PAYLOAD_LENGTH = 65536
 
@@ -443,7 +444,13 @@ def mkdir(path, nouse):
     if not response_verify(response, FS_MKDIR_TAG):
         log.die('mkdir at ' + path + ' failed!')
 
+
+
+
 def rm(path):
+    previous_timeout = SERIAL_PORT.timeout
+    SERIAL_PORT.timeout = SERIAL_PORT_FS_TIMEOUT
+
     log.inf('Deleteing ' + str(path))
     payload = bytes(path, 'utf-8') + b'\x00'
     log.dbg(list(payload))
@@ -454,6 +461,11 @@ def rm(path):
         log.wrn('Delete ' + path + ' failed')
     else:
         log.inf('Delete ' + path + ' success')
+
+    SERIAL_PORT.timeout = previous_timeout
+
+
+
 
 def cp(src, dst):
     payload = bytes(dst, 'utf-8') + b'\x00'
@@ -480,6 +492,7 @@ def cp(src, dst):
 
     process_bar.close()
     fs_file_end(file_crc)
+
 
 
 
@@ -629,6 +642,9 @@ def sync_baud(new_baud):
     SERIAL_PORT.reset_input_buffer()
 
 
+
+
+
 def execute(address):
     payload = get_uint64_big_bytes(address)
 
@@ -636,6 +652,9 @@ def execute(address):
     response = wait_response()
     if not response_verify(response, EXECUTE_TAG):
         log.die('excute at ram address ' + str(address) + ' failed!') 
+
+
+
 
 def reboot():
     send_request(REBOOT_TAG)
@@ -748,7 +767,7 @@ def load_to_sdcard(serial_name, image, target_name):
 
 
 
-def sync_to_filesystem(serial_name, delete, source, destination, files):
+def copy_to_filesystem(serial_name, delete, source, destination, files):
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -767,12 +786,15 @@ def sync_to_filesystem(serial_name, delete, source, destination, files):
     if sync() == False:
         log.die("Sync failed!")
 
-    # if delete:
-    #     rm(str(destination / source))
-    
+    if delete:
+        rm(str(destination / source))
+
     for file in files:
         des = destination / file
         cp(str(file), str(des))
+
+    reboot()
+    deinit_serial_device()
 
 
 

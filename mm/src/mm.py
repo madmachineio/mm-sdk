@@ -204,15 +204,16 @@ def download_img(args):
         download_to_ram(args)
 
 
-def sync_resources(args):
+def copy_resources(args):
     source = Path(args.source)
     destination = Path(args.destination)
+    delete_first = True
 
     if source.is_absolute():
-        log.die('Not support absolute resource right now')
+        log.die('Absolute resource path is not supported at this time')
 
     if not destination.is_absolute():
-        log.die('Destination must be a absolute path')
+        log.die('The destination must be an absolute path')
 
     if not source.is_dir():
         log.die(str(args.source) + ' directory not exist')
@@ -227,27 +228,18 @@ def sync_resources(args):
     if len(files) == 0:
         log.die(str(args.source) + ' is empty')
 
-    if args.type == 'sync':
-        serial_download.sync_to_filesystem('wch', True, source, destination, files)
+    if args.mode == 'sync':
+        delete_first = True
+    else:
+        delete_first = False
+
+    serial_download.copy_to_filesystem('wch', delete_first, source, destination, files)
 
     for file in files:
         log.dbg(str(file))
     
-    
-    
 
-    #if args.target_location == 'sd':
-    #    if args.file is None:
-    #        download_project_to_sd()
-    #    else:
-    #       download_to_sd(args)
-    #elif args.target_location == 'partition':
-    #    if args.file is None:
-    #        download_project_to_partition(args.partition)
-    #    else:
-    #        download_to_partition(args)
-    #elif args.target_location == 'ram':
-    #    download_to_ram(args)
+
 
 def add_header(args):
     if args.file is None:
@@ -395,55 +387,55 @@ def main():
 
     subparsers = parser.add_subparsers()
 
-    init_parser = subparsers.add_parser('init', help = 'Initiaize a new project')
-    init_parser.add_argument('-t', '--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type, default type is executable')
-    init_parser.add_argument('--name', type = str, help = 'Initiaize the new project with a specified name, otherwise the project name depends on the current directory name')
-    init_parser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOMicro'], help = 'Generate MadMachine project file by passing this parameter')
-    init_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    init_parser = subparsers.add_parser('init', help = 'Initialize a new project')
+    init_parser.add_argument('-t', '--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type: The default type is executable')
+    init_parser.add_argument('--name', type = str, help = 'Initialize a new project with a specified name. If no name is provided, the project name will default to the name of the current directory')
+    init_parser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOMicro'], help = 'Pass this parameter to generate the MadMachine project file')
+    init_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     init_parser.set_defaults(func = init_project)
 
     build_parser = subparsers.add_parser('build', help = 'Build a project')
-    build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     build_parser.set_defaults(func = build_project)
 
-    header_parser = subparsers.add_parser('add_header', help = 'Add header to bin file')
-    header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
-    header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Binary file path")
+    header_parser = subparsers.add_parser('add_header', help = 'Add a header to the binary file')
+    header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
+    header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Path to the binary file")
     header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
-    header_parser.add_argument('--verify', type = str, choices =['crc32', 'sha256'], default = 'crc32', help = 'Verify type')
+    header_parser.add_argument('--verify', type = str, choices =['crc32', 'sha256'], default = 'crc32', help = 'Type of verification')
     header_parser.set_defaults(func = add_header)
 
-    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the boards RAM/Flash/SD card')
-    download_parser.add_argument('-t', '--type', type = str, choices = ['ram', 'partition', 'sd'], default = 'partition', help = "Download type, default is Flash partition")
-    download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition")
+    download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s RAM, Flash, or SD card')
+    download_parser.add_argument('-t', '--type', type = str, choices = ['ram', 'partition', 'sd'], default = 'partition', help = "Download type: The default is Flash partition")
+    download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition, the default is 'user'")
     download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
-    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Image file path")
-    download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Path to the image file")
+    download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     download_parser.set_defaults(func = download_img)
 
-    sync_parser = subparsers.add_parser('sync', help = 'Sync the resources to the Flash/SD card filesystem')
-    sync_parser.add_argument('-t', '--type', type = str, choices = ['sync', 'override'], default = 'sync', help = "Sync the source to the destination or override the destination, default is Flash partition")
-    sync_parser.add_argument('-s', '--source', type = Path, default = 'Resources', help = "Source path")
-    sync_parser.add_argument('-d', '--destination', type = Path, default = '/SD:', help = "Destination path")
-    sync_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
-    sync_parser.set_defaults(func = sync_resources)
+    sync_parser = subparsers.add_parser('copy', help = 'Copy the resources to the Flash or SD card filesystem')
+    sync_parser.add_argument('-m', '--mode', type = str, choices = ['sync', 'merge'], default = 'merge', help = "Copy the resources to the destination, the default mode is merge")
+    sync_parser.add_argument('-s', '--source', type = Path, default = 'Resources', help = "Source path: The default path is 'Resources' within the project")
+    sync_parser.add_argument('-d', '--destination', type = Path, default = '/SD:', help = "Destination path: The default path is '/SD:'")
+    sync_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
+    sync_parser.set_defaults(func = copy_resources)
 
     clean_parser = subparsers.add_parser('clean', help = 'Clean project')
     clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all compilation outputs")
-    clean_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    clean_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     clean_parser.set_defaults(func = clean_project)
 
-    get_parser = subparsers.add_parser('get', help = 'Get specified information, used by IDE')
-    get_parser.add_argument('--info', type = str, choices =['name', 'usb'], help = 'Information type')
-    get_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    get_parser = subparsers.add_parser('get', help = 'Retrieve specified information for use by the IDE')
+    get_parser.add_argument('--info', type = str, choices =['name', 'usb'], help = 'Type of information')
+    get_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     get_parser.set_defaults(func = get_info)
 
     ci_build_parser = subparsers.add_parser('ci-build', help = 'CI Build')
-    ci_build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    ci_build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     ci_build_parser.set_defaults(func = ci_build)
 
-    host_test_parser = subparsers.add_parser('host-test', help = 'Test a project in host with SwiftIO mock')
-    host_test_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase output verbosity")
+    host_test_parser = subparsers.add_parser('host-test', help = 'Test a project on the host using the SwiftIO mock')
+    host_test_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     host_test_parser.set_defaults(func = host_test)
 
     args = parser.parse_args()
