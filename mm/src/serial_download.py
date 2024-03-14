@@ -458,9 +458,9 @@ def rm(path):
     send_request(FS_RM_TAG, payload)
     response = wait_response()
     if not response_verify(response, FS_RM_TAG):
-        log.wrn('Delete ' + path + ' failed')
+        log.wrn('Deletion of the ' + path + ' failed')
     else:
-        log.inf('Delete ' + path + ' success')
+        log.inf('Deletion of the ' + path + ' was successful')
 
     SERIAL_PORT.timeout = previous_timeout
 
@@ -469,12 +469,12 @@ def rm(path):
 
 def cp(src, dst):
     payload = bytes(dst, 'utf-8') + b'\x00'
-    log.inf('Copy ' + src + ' to ' + dst + '...')
+    log.inf('Copying ' + src + ' to ' + dst)
     log.dbg(list(payload))
     f = Path(src)
 
     if not f.is_file():
-        log.die('open file ' + str(f) + ' failed!')
+        log.die('Open file ' + str(f) + ' failed!')
 
     file_length = f.stat().st_size
     file_bytes = f.read_bytes()
