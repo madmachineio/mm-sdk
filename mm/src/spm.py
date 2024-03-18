@@ -2,27 +2,24 @@ import json, shutil
 from pathlib import Path
 import util, log
 
-DEFAULT_LIB_MANIFEST = """// swift-tools-version:5.7
+DEFAULT_LIB_MANIFEST = """// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
+
 import PackageDescription
+
 let package = Package(
     name: "{name}",
     products: [
-        // Products define the executables and libraries a package produces, and make them visible to other packages.
+        // Products define the executables and libraries a package produces, making them visible to other packages.
         .library(
             name: "{name}",
             targets: ["{name}"]),
     ],
-    dependencies: [
-        // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/madmachineio/SwiftIO.git", branch: "main"),
-    ],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
+        // Targets are the basic building blocks of a package, defining a module or a test suite.
+        // Targets can depend on other targets in this package and products from dependencies.
         .target(
-            name: "{name}",
-            dependencies: ["SwiftIO"]),
+            name: "{name}"),
         .testTarget(
             name: "{name}Tests",
             dependencies: ["{name}"]),
@@ -30,34 +27,34 @@ let package = Package(
 )
 """
 
-DEFAULT_EXE_MANIFEST = """// swift-tools-version:5.7
+DEFAULT_EXE_MANIFEST = """// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
+
 import PackageDescription
+
 let package = Package(
     name: "{name}",
     dependencies: [
         // Dependencies declare other packages that this package depends on.
         .package(url: "https://github.com/madmachineio/SwiftIO.git", branch: "main"),
         .package(url: "https://github.com/madmachineio/MadBoards.git", branch: "main"),
-        .package(url: "https://github.com/madmachineio/MadDrivers.git", branch: "main"),
+        // .package(url: "https://github.com/madmachineio/MadDrivers.git", branch: "main"),
     ],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
+        // Targets are the basic building blocks of a package, defining a module or a test suite.
+        // Targets can depend on other targets in this package and products from dependencies.
         .executableTarget(
             name: "{name}",
             dependencies: [
                 "SwiftIO",
                 "MadBoards",
-                // use specific library would speed up the compile procedure
-                .product(name: "MadDrivers", package: "MadDrivers")
+                // Use specific library name rather than "MadDrivers" would speed up the build procedure.
+                // .product(name: "MadDrivers", package: "MadDrivers")
             ]),
-        .testTarget(
-            name: "{name}Tests",
-            dependencies: ["{name}"]),
     ]
 )
 """
+
 
 PKG_DESCRIBE_JSON = ''
 
@@ -127,7 +124,7 @@ def get_project_type():
     return project_tpye
 
 
-def build(destination, p_type):
+def build(p_type, destination, dest_data):
     flags = [
         util.get_tool('swift-build'),
         '-c release',
@@ -137,6 +134,9 @@ def build(destination, p_type):
 
     if p_type == 'executable':
         log.inf('Building executable...')
+        #linker_flags = json.loads(dest_data).get('extraLinkerFlags')
+        #linker_flags = ['-Xlinker ' + item for item in linker_flags]
+        #flags += linker_flags
     else:
         log.inf('Building library...')
 

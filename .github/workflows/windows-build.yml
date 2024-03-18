@@ -1,0 +1,66 @@
+name: windows-build
+
+
+on:
+  push:
+    branches:
+      - main
+      - 'fix/**'
+      - 'feature/**'
+      - 'release/**'
+  pull_request:
+    branches:
+      - main
+      - 'release/**'
+  schedule:
+    - cron: '1 0 * * 4'
+
+
+jobs:
+  build:
+    name: Build on ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [windows-2019]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Check action type
+        run: |
+          echo "OS: $env:RUNNER_OS"
+          echo "Repository: $env:GITHUB_REPOSITORY"
+          echo "Commit: $env:GITHUB_SHA"
+          $BRANCH_NAME = git rev-parse --abbrev-ref HEAD
+          echo "Branch: $BRANCH_NAME"
+
+      - name: Prepare Python environment
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: Prepare requirements
+        id: prepare-requirements
+        run: |
+          echo "Prepare python requirements on $env:RUNNER_OS"
+          cd "$env:GITHUB_WORKSPACE"
+          cd .\mm\src
+          pip3 install -r requirements.txt
+      
+      - name: Build python project
+        id: build-project
+        run: |
+          cd $env:GITHUB_WORKSPACE
+          mkdir exe
+          cd .\mm\src
+          pyinstaller .\mm.py
+          mv .\dist\mm\* $env:GITHUB_WORKSPACE\exe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: mm-script-executable-${{ matrix.os }}
+          path: |
+            exe
+          retention-days: 7

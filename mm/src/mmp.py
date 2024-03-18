@@ -9,11 +9,11 @@ SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'sd_image_name': 'swiftio.bin',
                 'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
-SWIFTIO_FEATHER = {'vid': '0x1fc9',
+SWIFTIO_MICRO = {'vid': '0x1fc9',
                     'pid': '0x0095',
                     'serial_number': '012345671FC90095',
-                    'sd_image_name': 'feather.img',
-                    'usb2serial_device': 'CP21'}
+                    'sd_image_name': 'micro.img',
+                    'usb2serial_device': 'wch'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
@@ -22,7 +22,7 @@ DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
 # Those project files in the dependent libraries would be IGNORED
 
 # Specify the board name below
-# There are "SwiftIOBoard" and "SwiftIOFeather" now
+# There are "SwiftIOBoard" and "SwiftIOMicro" now
 board = "{name}"
 
 # Specifiy the target triple below
@@ -90,8 +90,8 @@ def get_board_info(info):
     board = TOML_CONTENT.get('board')
     if board == 'SwiftIOBoard':
         dic = SWIFTIO_BOARD
-    elif board == 'SwiftIOFeather':
-        dic = SWIFTIO_FEATHER
+    elif board == 'SwiftIOMicro':
+        dic = SWIFTIO_MICRO
     else:
         log.die('unknown board')
     
@@ -118,12 +118,8 @@ def get_c_arch():
 def get_c_predefined():
     flags = [
         '-nostdinc',
-        '--rtlib=libgcc',
         '-Wno-unused-command-line-argument',
-        '-D__MADMACHINE__',
-        '-D_POSIX_THREADS',
-        '-D_POSIX_READER_WRITER_LOCKS',
-        '-D_UNIX98_THREAD_MUTEX_ATTRIBUTES'
+        '-D__MADMACHINE__'
     ]
     return flags
 
@@ -205,8 +201,6 @@ def get_swift_arch():
     triple = get_triple()
     if triple == 'thumbv7em-unknown-none-eabihf':
         flags = [
-            '-target',
-            'thumbv7em-unknown-none-eabihf',
             '-target-cpu',
             'cortex-m7',
             '-Xcc',
@@ -216,8 +210,6 @@ def get_swift_arch():
         ]
     else:
         flags = [
-            '-target',
-            'thumbv7em-unknown-none-eabi',
             '-target-cpu',
             'cortex-m7+nofp',
             '-Xcc',
@@ -237,12 +229,8 @@ def get_swift_predefined(p_type):
         '-data-sections',
         '-Xcc',
         '-D__MADMACHINE__',
-        '-Xcc',
-        '-D_POSIZ_THREADS',
-        '-Xcc',
-        '-D_POSIX_READER_WRITER_LOCKS',
-        '-Xcc',
-        '-D_UNIX98_THREAD_MUTEX_ATTRIBUTES'
+        '-Xfrontend',
+        '-disable-implicit-string-processing-module-import'
     ]
 
     if p_type == 'executable':
@@ -421,31 +409,147 @@ def get_swiftc_flags(p_type, path, p_name):
 
     # Need to add '-nostdlib++' in static-executable-args.lnk
     # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
-    if p_type == 'executable':
-        flags += get_swift_linker_config(path, p_name)
-        flags += get_swift_linker_script()
-        flags += get_swift_link_search_path()
-        flags += get_swift_board_library()
-        flags += get_swift_gcc_library()
+    # if p_type == 'executable':
+    #     flags += get_swift_linker_config(path, p_name)
+    #     flags += get_swift_linker_script()
+    #     flags += get_swift_link_search_path()
+    #     flags += get_swift_board_library()
+    #     flags += get_swift_gcc_library()
 
 
     return flags
 
+
+def get_linker_config(path, p_name):
+    map_path = str(str(path) + '/' + p_name + '.map')
+
+    flags = [
+        '-u,_OffsetAbsSyms',
+        '-u,_ConfigAbsSyms',
+        '-X',
+        '-N',
+        '--gc-sections',
+        '--build-id=none',
+        '--sort-common=descending',
+        '--sort-section=alignment',
+        #'--no-enum-size-warning',
+        '--print-memory-usage',
+        '-Map',
+         map_path
+    ]
+    #flags = ['-Xlinker ' + item for item in flags]
+    #flags = (' '.join(flags)).split(' ')
+
+    return flags
+
+def get_linker_script():
+    board = get_board_name()
+    sdk_path = util.get_sdk_path()
+
+    flags = [
+        '-T',
+        str(sdk_path / 'Boards' / board / 'linker/sdram.ld')
+    ]
+    #flags = ['-Xlinker ' + item for item in flags]
+    #flags = (' '.join(flags)).split(' ')
+
+    return flags
+
+def get_linker_search_path():
+    sdk_path = util.get_sdk_path()
+    triple = get_triple()
+    if triple == 'thumbv7em-unknown-none-eabihf':
+        sub_path = '/v7e-m+dp/hard'
+    else:
+        sub_path = '/v7e-m/nofp'
+    
+    flags = [
+        'usr/lib/gcc/arm-none-eabi/10.3.1/thumb' + sub_path,
+        'usr/arm-none-eabi/lib/thumb' + sub_path
+    ]
+    flags = ['-L' + str(sdk_path / item) for item in flags]
+    flags = [item for item in flags]
+    #flags = ['-Xlinker ' + item for item in flags]
+    #flags = (' '.join(flags)).split(' ')
+
+    return flags
+
+def get_linker_board_library():
+    sdk_path = util.get_sdk_path()
+    board = get_board_name()
+    triple = get_triple()
+    if triple == 'thumbv7em-unknown-none-eabihf':
+        sub_path = 'eabihf'
+    else:
+        sub_path = 'eabi'
+
+    libraries = ['--whole-archive']
+    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.obj'))
+    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a'))
+
+    libraries.append('--no-whole-archive')
+    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.obj'))
+    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.a'))
+
+    flags = [str(item) for item in libraries]
+    #flags = ['-Xlinker ' + str(item) for item in libraries]
+    #flags = (' '.join(flags)).split(' ')
+
+    #flags += ['-lswiftCore']
+
+    return flags
+
+
+def get_linker_gcc_library():
+    libraries = [
+        '--start-group',
+        '-lstdc++',
+        '-lc',
+        '-lg',
+        '-lm',
+        '-lgcc',
+        '--end-group'
+    ]
+
+    flags = [str(item) for item in libraries]
+    #flags = ['-Xlinker ' + str(item) for item in libraries]
+    #flags = (' '.join(flags)).split(' ')
+
+    return flags
+
+
+def get_linker_flags(p_type, path, p_name):
+    flags = []
+
+    if p_type == 'executable':
+        flags += get_linker_config(path, p_name)
+        flags += get_linker_script()
+        flags += get_linker_search_path()
+        flags += get_linker_board_library()
+        flags += get_linker_gcc_library()
+    
+    return flags
+
+
 def get_destination(p_type, path, p_name):
+    sdk = str(util.get_sdk_path())
+    bin_dir = str(util.get_bin_path())
+    target = get_triple()
     cc_flags = get_cc_flags(p_type)
     swiftc_flags = get_swiftc_flags(p_type, path, p_name)
-    sdk = str(util.get_sdk_path())
-    target = get_triple()
-    bin_dir = str(util.get_bin_path())
+    linker_flags = get_linker_flags(p_type, path, p_name)
+    
 
     destination_dic = {
-        'extra-cc-flags': cc_flags,
-        'extra-cpp-flags': cc_flags,
-        'extra-swiftc-flags': swiftc_flags,
-        'sdk': sdk,
-        'target': target,
-        'toolchain-bin-dir': bin_dir,
-        'version': 1
+        'version': 2,
+        'sdkRootDir': sdk,
+        'toolchainBinDir': bin_dir,
+        'hostTriples': [],
+        'targetTriples': [target],
+        'extraCCFlags': cc_flags,
+        'extraCXXFlags': cc_flags,
+        'extraSwiftCFlags': swiftc_flags,
+        'extraLinkerFlags': linker_flags
     }
 
     js_text = json.dumps(destination_dic, indent = 4)

@@ -9,7 +9,8 @@ import log, util
 
 SERIAL_PORT = None
 SERIAL_INIT_BAUDRATE = 115200
-SERIAL_PORT_READ_TIMEOUT = 2
+SERIAL_PORT_READ_TIMEOUT = 5
+SERIAL_PORT_FS_TIMEOUT = 30
 
 MAX_PAYLOAD_LENGTH = 65536
 
@@ -42,7 +43,11 @@ FS_BEGIN_TAG        = 0x40
 FS_DATA_TAG         = 0x41
 FS_END_TAG          = 0x42
 
-
+FS_MKDIR_TAG        = 0x50
+FS_RM_TAG           = 0x51
+FS_FILE_BEGIN_TAG   = 0x52
+FS_FILE_DATA_TAG    = 0x53
+FS_FILE_END_TAG     = 0x54
 
 
 def get_uint32_big_bytes(number):
@@ -61,52 +66,52 @@ def get_uint64_big_bytes(number):
 
 def find_serial_device(device_name):
     port_list = list(serial.tools.list_ports.grep(device_name))
-    count = len(port_list)
+    port_path_list = list()
+    for port in port_list:
+        port_path_list.append(port.device)
     
-    if count == 0:
-        port_path = None
-    elif count == 1:
-        port_path = port_list[0].device
-    elif count == 2:
-        slab = None
-        seri = None
-        for port in port_list:
-            if 'slab' in port.name.lower():
-                slab = port.device
-            elif 'serial' in port.name.lower():
-                seri = port.device
-        
-        if slab != None and seri != None:
-            port_path = slab
-        else:
-            log.wrn('found more than one ' + device_name + '!')
-    else:
-        log.wrn('found more than one ' + device_name + '!')
-        port_path = None
+    if len(port_path_list) == 0:
+        port_path_list = None
 
-    return port_path
+    return port_path_list
 
 
 def init_serial_device(device_name):
     global SERIAL_PORT
 
-    port_path = find_serial_device(device_name)
-    if port_path is None:
-        log.die('plz make sure ' + device_name + ' is correctly connected to your computer!')
-    else:
-        log.inf('Found ' + device_name + ' at ' + port_path)
+    port_path_list = find_serial_device(device_name)
 
-    try:
-        SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
-    except IOError:
-        log.die('Device or resource busy! Plz make sure it is not in use!')
+    if port_path_list is None:
+        log.die('Please confirm ' + device_name + ' is correctly connected to your computer!')
+    elif len(port_path_list) > 1:
+        log.wrn('Found more than one ' + device_name)
 
-    if SERIAL_PORT is not None and SERIAL_PORT.is_open:
-        SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
-        SERIAL_PORT.reset_output_buffer()
-        SERIAL_PORT.reset_input_buffer()
-        log.inf('Open ' + device_name + ' success')
-    else:
+    for port_path in port_path_list:
+        try:
+            SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
+        except IOError:
+            log.wrn('Device or resource busy! Plz make sure it is not in use!')
+
+        if SERIAL_PORT is not None and SERIAL_PORT.is_open:
+            SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
+            SERIAL_PORT.reset_output_buffer()
+            SERIAL_PORT.reset_input_buffer()
+            if len(port_path_list) > 1:
+                reset_to_download()
+                ret = sync(3)
+                if ret:
+                    SERIAL_PORT.reset_output_buffer()
+                    SERIAL_PORT.reset_input_buffer()
+                    log.inf('Open ' + port_path + ' success')
+                    break
+                else:
+                    deinit_serial_device()
+            else:
+                log.inf('Open ' + port_path + ' success')
+        else:
+            log.wrn('Open ' + port_path + ' failed!')
+    
+    if SERIAL_PORT is None or not SERIAL_PORT.is_open:
         log.die('Open ' + device_name + ' failed!')
     
 
@@ -242,7 +247,7 @@ def response_get_payload(response):
 
 def sync(try_count = 6):
     count = 0
-    success = False
+    result = False
     previous_timeout = SERIAL_PORT.timeout
     
     SERIAL_PORT.timeout = 0.2
@@ -256,15 +261,17 @@ def sync(try_count = 6):
         response = wait_response()
 
         if response_verify(response, SYNC_TAG):
-            success = True
+            result = True
             break
         else:
             sleep(0.1)
     
     print('', flush=True)
     SERIAL_PORT.timeout = previous_timeout
-    if not success:
-        log.die('serial port synchronization failed!')
+    if not result:
+        log.wrn('serial port synchronization failed!')
+
+    return result
 
 
 
@@ -274,14 +281,14 @@ def mem_begin(target_addr, target_length):
     send_request(RAM_BEGIN_TAG, payload)
     response = wait_response()
     if not response_verify(response, RAM_BEGIN_TAG):
-        log.dbg('mem_begin failed')
+        log.die('mem_begin failed')
 
 
 def mem_data(payload):
     send_request(RAM_DATA_TAG, payload)
     response = wait_response()
     if not response_verify(response, RAM_DATA_TAG):
-        log.dbg('mem_data failed')
+        log.die('mem_data failed')
 
 
 
@@ -291,7 +298,7 @@ def mem_end(bin_crc):
     send_request(RAM_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, RAM_END_TAG):
-        log.dbg('mem_end failed')
+        log.die('mem_end failed')
 
 
 def flash_begin(image_offset, image_length):
@@ -303,14 +310,14 @@ def flash_begin(image_offset, image_length):
     send_request(FLASH_BEGIN_TAG, payload)
     response = wait_response()
     if not response_verify(response, FLASH_BEGIN_TAG):
-        log.dbg('flash_begin failed!')
+        log.die('flash_begin failed!')
 
 
 def flash_data(payload):
     send_request(FLASH_DATA_TAG, payload)
     response = wait_response()
     if not response_verify(response, FLASH_DATA_TAG):
-        log.dbg('flash_data failed!')
+        log.die('flash_data failed!')
 
 
 def flash_end(bin_crc):
@@ -320,7 +327,7 @@ def flash_end(bin_crc):
     send_request(FLASH_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, FLASH_END_TAG):
-        log.dbg('flash_end failed')
+        log.die('flash_end failed')
 
 
 
@@ -333,14 +340,14 @@ def partion_begin(name, image_length):
     send_request(PARTION_BEGIN_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_BEGIN_TAG):
-        log.dbg('partion_begin failed!')
+        log.die('partion_begin failed!')
 
 
 def partion_data(payload):
     send_request(PARTION_DATA_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_DATA_TAG):
-        log.dbg('partion_data failed!')
+        log.die('partion_data failed!')
 
 
 def partion_end(bin_crc):
@@ -350,7 +357,7 @@ def partion_end(bin_crc):
     send_request(PARTION_END_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_END_TAG):
-        log.dbg('partion_end failed')
+        log.die('partion_end failed')
 
 
 def partion_set_boot(name):
@@ -361,14 +368,14 @@ def partion_set_boot(name):
     send_request(PARTION_SETBOOT_TAG, payload)
     response = wait_response()
     if not response_verify(response, PARTION_SETBOOT_TAG):
-        log.dbg('set boot partion failed!')
+        log.die('set boot partion failed!')
 
 
 
 
 def sdcard_begin(image_length, image_path):
     image_length = get_uint32_big_bytes(image_length)
-    image_path = bytes(image_path, 'utf-8')
+    image_path = bytes(image_path, 'utf-8') + b'\x00'
 
     payload = image_length + image_path
 
@@ -395,6 +402,97 @@ def sdcard_end(bin_crc):
     response = wait_response()
     if not response_verify(response, FS_END_TAG):
         log.die('sdcard_end failed!')
+
+
+
+
+def fs_file_begin(image_length, image_path):
+    image_length = get_uint32_big_bytes(image_length)
+    image_path = bytes(image_path, 'utf-8') + b'\x00'
+
+    payload = image_length + image_path
+
+    send_request(FS_FILE_BEGIN_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_FILE_BEGIN_TAG):
+        log.die('fs_file_begin failed!')
+
+
+def fs_file_data(payload):
+    send_request(FS_FILE_DATA_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_FILE_DATA_TAG):
+        log.die('fs_file_data failed!')
+
+
+def fs_file_end(bin_crc):
+    bin_crc = get_uint32_big_bytes(bin_crc)
+
+    payload = bin_crc
+
+    send_request(FS_FILE_END_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_FILE_END_TAG):
+        log.die('fs_file_end failed!')
+
+
+
+def mkdir(path, nouse):
+    payload = bytes(path, 'utf-8') + b'\x00'
+    send_request(FS_MKDIR_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_MKDIR_TAG):
+        log.die('mkdir at ' + path + ' failed!')
+
+
+
+
+def rm(path):
+    previous_timeout = SERIAL_PORT.timeout
+    SERIAL_PORT.timeout = SERIAL_PORT_FS_TIMEOUT
+
+    log.inf('Deleteing ' + str(path))
+    payload = bytes(path, 'utf-8') + b'\x00'
+    log.dbg(list(payload))
+
+    send_request(FS_RM_TAG, payload)
+    response = wait_response()
+    if not response_verify(response, FS_RM_TAG):
+        log.wrn('Deletion of the ' + path + ' failed')
+    else:
+        log.inf('Deletion of the ' + path + ' was successful')
+
+    SERIAL_PORT.timeout = previous_timeout
+
+
+
+
+def cp(src, dst):
+    payload = bytes(dst, 'utf-8') + b'\x00'
+    log.inf('Copying ' + src + ' to ' + dst)
+    log.dbg(list(payload))
+    f = Path(src)
+
+    if not f.is_file():
+        log.die('Open file ' + str(f) + ' failed!')
+
+    file_length = f.stat().st_size
+    file_bytes = f.read_bytes()
+    file_crc = crc32(file_bytes)
+    process_bar = tqdm(total=file_length, unit='B', unit_scale=True)
+
+    fs_file_begin(file_length, dst)
+
+    offset = 0
+    while offset < file_length:
+        payload = file_bytes[offset : offset + MAX_PAYLOAD_LENGTH]
+        offset += MAX_PAYLOAD_LENGTH
+        fs_file_data(payload)
+        process_bar.update(len(payload))
+
+    process_bar.close()
+    fs_file_end(file_crc)
+
 
 
 
@@ -544,6 +642,9 @@ def sync_baud(new_baud):
     SERIAL_PORT.reset_input_buffer()
 
 
+
+
+
 def execute(address):
     payload = get_uint64_big_bytes(address)
 
@@ -551,6 +652,9 @@ def execute(address):
     response = wait_response()
     if not response_verify(response, EXECUTE_TAG):
         log.die('excute at ram address ' + str(address) + ' failed!') 
+
+
+
 
 def reboot():
     send_request(REBOOT_TAG)
@@ -589,10 +693,12 @@ def load_to_ram(serial_name, image, address):
     init_serial_device(serial_name)
 
     reset_to_download()
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     sync_baud(3000000)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     send_file2mem(image, address)
     execute(address)
@@ -604,10 +710,13 @@ def load_to_partition(serial_name, image, partition):
     init_serial_device(serial_name)
 
     reset_to_download()
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     sync_baud(3000000)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
+
     get_board_info()
     get_rom_version()
 
@@ -616,7 +725,8 @@ def load_to_partition(serial_name, image, partition):
     execute(0x00000000)
 
     sleep(0.05)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     send_file2partion(image, partition)
 
@@ -631,10 +741,12 @@ def load_to_sdcard(serial_name, image, target_name):
     init_serial_device(serial_name)
 
     reset_to_download()
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     sync_baud(3000000)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     get_board_info()
 
@@ -644,7 +756,8 @@ def load_to_sdcard(serial_name, image, target_name):
     execute(0x00000000)
 
     sleep(0.05)
-    sync()
+    if sync() == False:
+        log.die("Sync failed!")
 
     send_file2sdcard(image, target_name)
     reboot()
@@ -653,7 +766,40 @@ def load_to_sdcard(serial_name, image, target_name):
 
 
 
-IMAGE1 = Path('./feather.img')
+
+def copy_to_filesystem(serial_name, delete, source, destination, files):
+    init_serial_device(serial_name)
+
+    reset_to_download()
+    if sync() == False:
+        log.die("Sync failed!")
+
+    sync_baud(3000000)
+    if sync() == False:
+        log.die("Sync failed!")
+
+    serial_loader = util.get_tool_path('serial-loader')
+    send_file2mem(serial_loader, 0x00000000)
+    execute(0x00000000)
+
+    sleep(0.05)
+    if sync() == False:
+        log.die("Sync failed!")
+
+    if delete:
+        rm(str(destination / source))
+
+    for file in files:
+        des = destination / file
+        cp(str(file), str(des))
+
+    reboot()
+    deinit_serial_device()
+
+
+
+
+IMAGE1 = Path('./micro.img')
 IMAGE2 = Path('./clear_to_AA.bin')
 
 def test_load_to_ram(serial_name, address):
@@ -687,4 +833,4 @@ def test_load_to_ram(serial_name, address):
 
 
 #log.set_verbosity(log.VERBOSE_DBG)
-#test_load_to_ram('CP21', 0x80000000)
+#test_load_to_ram('wch', 0x80000000)
