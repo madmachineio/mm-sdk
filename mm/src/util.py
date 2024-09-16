@@ -7,41 +7,58 @@ import log
 SDK_ENV = ''
 SDK_PATH = ''
 
-tool_set = {
+SWIFT_PATH = ''
+
+sdk_tool_set = {
+    'ld': 'usr/bin/arm-none-eabi-ld',
+    'objcopy': 'usr/bin/arm-none-eabi-objcopy',
+    'serial-loader': 'Boards/SerialLoader.bin'
+}
+
+swift_tool_set = {
     'swift-build': 'usr/bin/swift-build',
     'swift-package': 'usr/bin/swift-package',
     'swift-test': 'usr/bin/swift-test',
-    'objcopy': 'usr/bin/arm-none-eabi-objcopy',
-    'llvm-cov': 'usr/bin/llvm-cov',
-    'serial-loader': 'Boards/SerialLoader.bin'
+    'llvm-cov': 'usr/bin/llvm-cov'
 }
 
 def quote_string(path):
     return '"%s"' % str(path)
 
 
-def set_sdk_path(path, save=False, env_name=None):
+def set_sdk_path(swift_path, tool_path, save=False, env_name=None):
     global SDK_ENV
     global SDK_PATH
+    global SWIFT_PATH
 
-    if not path.is_dir():
-        log.die(path + "doesn't exists")
+    if not swift_path.is_dir():
+        log.die(tool_path + "doesn't exists")
 
-    SDK_PATH = path
+    if not tool_path.is_dir():
+        log.die(tool_path + "doesn't exists")
+
+    SWIFT_PATH = swift_path
+
+    SDK_PATH = tool_path
     SDK_ENV = os.environ.copy()
 
     if save and env_name is not None:
-        SDK_ENV[env_name] = str(path)
+        SDK_ENV[env_name] = str(tool_path)
+
 
 def get_sdk_path():
     return SDK_PATH
 
-def get_bin_path():
-    return SDK_PATH / 'usr/bin'
+def get_swift_path():
+    return SWIFT_PATH
 
 def get_tool_path(tool):
-    pos = tool_set.get(tool)
-    path = Path(SDK_PATH / pos)
+    pos = swift_tool_set.get(tool)
+    if pos is not None:
+        path = Path(SWIFT_PATH / pos)
+    else:
+        pos = sdk_tool_set.get(tool)
+        path = Path(SDK_PATH / pos)
 
     if not path.is_file():
         log.die('cannot find ' + str(path))

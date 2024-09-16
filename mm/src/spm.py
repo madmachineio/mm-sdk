@@ -129,7 +129,7 @@ def build(p_type, destination, dest_data):
         util.get_tool('swift-build'),
         '-c release',
         '--destination',
-        util.quote_string(destination)
+        util.quote_string(destination),
     ]
 
     if p_type == 'executable':
@@ -141,7 +141,11 @@ def build(p_type, destination, dest_data):
         log.inf('Building library...')
 
     if util.command(flags):
-        log.die('compile failed')
+       log.die('compile failed')
+
+    # result = util.run_command(flags)
+    # print('--------------')
+    # print(result)
 
 
 def clean():

@@ -21,7 +21,7 @@ def init_project(args):
         else:
             init_name = PROJECT_PATH.name
         if init_type == 'executable' and board_name is None:
-            log.die('board name is required to initialize an executable')
+            log.die('The board name is required to initialize an executable')
         content = spm.init_manifest(p_name=init_name, p_type=init_type)
         spm_manifest.write_text(content, encoding='UTF-8')
     else:
@@ -30,7 +30,7 @@ def init_project(args):
         init_name = spm.get_project_name()
         init_type = spm.get_project_type()
         if init_type == 'executable' and board_name is None:
-            log.die('board name is required to initialize an executable')
+            log.die('The board name is required to initialize an executable')
 
     content = mmp.init_manifest(board=board_name, p_type=init_type)
     log.inf('Creating Package.mmp')
@@ -69,7 +69,7 @@ def build_project(args):
     triple = None
 
     if p_type == 'executable':
-        triple = mmp.get_triple()
+        triple, hard_float = mmp.get_triple()
         path = PROJECT_PATH / '.build' / triple / 'release'
 
     js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
@@ -99,7 +99,8 @@ def download_project_to_partition(partition):
         log.die('Download to partition is not supported on SwiftIOBoard')
 
     file_name = mmp.get_board_info('sd_image_name')
-    image = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+    triple, hard_float = mmp.get_triple()
+    image = PROJECT_PATH / '.build' / triple / 'release' / file_name
 
     if not image.is_file():
         log.die('Cannot find ' + file_name)
@@ -130,7 +131,8 @@ def download_project_to_sd():
         log.die(system + ' is not supported currently, please copy the image file manually')
 
     file_name = mmp.get_board_info('sd_image_name')
-    image = PROJECT_PATH / '.build' / mmp.get_triple() / 'release' / file_name
+    triple, hard_float = mmp.get_triple()
+    image = PROJECT_PATH / '.build' / triple / 'release' / file_name
 
     if not image.is_file():
         log.die('Cannot find ' + file_name)
@@ -449,13 +451,14 @@ def main():
     if args.verbose:
         log.set_verbosity(log.VERBOSE_DBG)
 
-    sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
-
-    if (sdk_path / 'usr' / 'Developer').exists():
-        util.set_sdk_path(sdk_path, save=True, env_name='MM_SDK_PATH')
-    else:
-        util.set_sdk_path(sdk_path)
+    system = platform.system()
+    if system == 'Darwin':
+        swift_path = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
     
+    sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
+    
+    util.set_sdk_path(swift_path, sdk_path)
+
     PROJECT_PATH = Path('.').resolve()
     args.func(args)
 

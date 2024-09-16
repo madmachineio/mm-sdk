@@ -3,6 +3,17 @@ from zlib import crc32
 from pathlib import Path
 import util, log
 
+SUPPORTED_ARCHS = [
+    'thumbv7em-unknown-none-eabi',
+    'thumbv7em-unknown-none-eabihf',
+    'armv7em-none-none-eabi'
+]
+
+SUPPORTED_BOARDS = [
+    'SwiftIOBoard',
+    'SwiftIOMicro'
+]
+
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
                 'serial_number': '012345671FC90093',
@@ -17,19 +28,26 @@ SWIFTIO_MICRO = {'vid': '0x1fc9',
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
-# This file holds those parameters that could not be managed by SwiftPM
-# Edit this file would change the behavior of the building/downloading procedure
-# Those project files in the dependent libraries would be IGNORED
+# This file contains parameters that cannot be managed by SwiftPM
+# Editing this file will alter the behavior of the build/download process
+# Project files within dependent libraries will be IGNORED
 
 # Specify the board name below
-# There are "SwiftIOBoard" and "SwiftIOMicro" now
+# Supported boards are listed as follows
+# "SwiftIOBoard"
+# "SwiftIOMicro"
 board = "{name}"
 
-# Specifiy the target triple below
-# There are "thumbv7em-unknown-none-eabi" and "thumbv7em-unknown-none-eabihf" now
-# If your code use significant floating-point calculation,
-# plz set it to "thumbv7em-unknown-none-eabihf"
+# Specify the target triple below
+# Supported architectures are listed as follows
+# "thumbv7em-unknown-none-eabi"
+# "thumbv7em-unknown-none-eabihf"
+# "armv7em-none-none-eabi"
 triple = "{triple}"
+
+# Enable or disable hardware floating-point support below
+# If your code involves significant floating-point calculations, please set it to 'true'
+hard-float = {hard_float}
 
 # Reserved for future use 
 version = 1
@@ -44,63 +62,75 @@ def initialize(content):
         TOML_CONTENT = toml.loads(content)
     except:
         log.die('decoding Package.mmp failed!')
-    
 
 
-def init_manifest(board, p_type, triple='thumbv7em-unknown-none-eabi'):    
+def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='true'):    
     if p_type == 'library':
         board = ''
 
-    content = DEFAULT_MMP_MANIFEST.format(name=board, triple=triple)
+    if p_type != 'library' and SUPPORTED_BOARDS.count(board) == 0:
+        log.die('Unknown board: ' + board)
+
+    triple = triple.strip()
+    if SUPPORTED_ARCHS.count(triple) == 0:
+        log.die('Unknown triple: ' + triple)
+    
+    if triple.endswith('hf') and hard_float != 'true':
+        log.die('The specified triple and hard-float settings are in conflict!')
+    
+    content = DEFAULT_MMP_MANIFEST.format(name=board, triple=triple, hard_float=hard_float)
+
     return content
 
 
 def get_board_name():
-    board = TOML_CONTENT.get('board')
+    board = TOML_CONTENT.get('board').strip()
 
     if board is None:
-        log.die('board is missing in Package.mmp')
+        log.die('Unable to recognize the board type in Package.mmp!')
 
-    return board.strip()
+    return board
 
 
 def get_triple():
-    triple = TOML_CONTENT.get('triple')
-
-    if triple is None:
-        float_type= TOML_CONTENT.get('float-type')
-        if float_type == 'hard':
-            triple = 'thumbv7em-unknown-none-eabihf'
-        elif float_type == 'soft':
-            triple = 'thumbv7em-unknown-none-eabi'
-        else:
-            log.die('unknown float-type')
-    
-    triple = triple.strip()
+    triple = TOML_CONTENT.get('triple').strip()
+    hard_float = TOML_CONTENT.get('hard-float')
 
     if len(triple) == 0:
-        log.die('missing triple config in Package.mmp')
+        log.die('The triple configuration is missing in Package.mmp!')
 
-    if (triple != 'thumbv7em-unknown-none-eabi') and (triple != 'thumbv7em-unknown-none-eabihf'):
-        log.die('unknown triple: ' + triple)
+    if SUPPORTED_ARCHS.count(triple) == 0:
+        log.die('Unknown triple: ' + triple)
 
-    return triple
+    if triple.endswith('hf') and hard_float == False:
+        log.die('The specified triple and hard-float settings are in conflict!')
+    
+    if triple.startswith('thumbv7em'):
+        triple = 'armv7em-none-none-eabi'
+
+    if hard_float is None:
+        log.wrn('The hard-float setting is missing, defualting to true!')
+        hard_float = True
+
+
+    return triple, hard_float
 
 def get_board_info(info):
-    board = TOML_CONTENT.get('board')
+    board = TOML_CONTENT.get('board').strip()
+
     if board == 'SwiftIOBoard':
         dic = SWIFTIO_BOARD
     elif board == 'SwiftIOMicro':
         dic = SWIFTIO_MICRO
     else:
-        log.die('unknown board')
+        log.die('Unknown board')
     
     return dic.get(info)
 
 
 def get_c_arch():
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
+    triple, hard_float = get_triple()
+    if hard_float == True:
         flags = [
             '-mcpu=cortex-m7',
             '-mhard-float',
@@ -124,10 +154,10 @@ def get_c_predefined():
     return flags
 
 def get_gcc_include_path():
-    triple = get_triple()
+    triple, hard_float = get_triple()
     sdk_path = util.get_sdk_path()
 
-    if triple == 'thumbv7em-unknown-none-eabihf':
+    if hard_float == True:
         sub_path = '/v7e-m+dp/hard'
     else:
         sub_path = '/v7e-m/nofp'
@@ -146,17 +176,17 @@ def get_gcc_include_path():
         'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        #'usr/lib/clang/13.0.0/include',
+        #'usr/lib/clang/17/include',
     ]
 
     flags = ['-I' + str(sdk_path / item) for item in flags] 
     return flags
 
 def get_clang_include_path():
-    triple = get_triple()
+    triple, hard_float = get_triple()
     sdk_path = util.get_sdk_path()
 
-    if triple == 'thumbv7em-unknown-none-eabihf':
+    if hard_float == True:
         sub_path = '/v7e-m+dp/hard'
     else:
         sub_path = '/v7e-m/nofp'
@@ -175,7 +205,7 @@ def get_clang_include_path():
         #'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        'usr/lib/clang/13.0.0/include',
+        'usr/lib/clang/17/include',
     ]
 
     flags = ['-I' + str(sdk_path / item) for item in flags]
@@ -198,9 +228,15 @@ def get_cc_flags(p_type):
 
 
 def get_swift_arch():
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
-        flags = [
+    triple, hard_float = get_triple()
+
+    flags = [
+        '-target',
+        triple
+    ]
+
+    if hard_float == True:
+        flags += [
             '-target-cpu',
             'cortex-m7',
             '-Xcc',
@@ -209,7 +245,7 @@ def get_swift_arch():
             '-mfloat-abi=hard'
         ]
     else:
-        flags = [
+        flags += [
             '-target-cpu',
             'cortex-m7+nofp',
             '-Xcc',
@@ -222,28 +258,61 @@ def get_swift_arch():
 
 def get_swift_predefined(p_type):
     flags = [
-        '-static-stdlib',
+        #'-driver-print-jobs',
+        '-Osize',
+        '-wmo',
+        '-enable-experimental-feature',
+        'Embedded',
+        '-Xfrontend',
+        '-enable-experimental-feature',
+        '-Xfrontend',
+        'Extern',
+        # '-Xfrontend',
+        # '-disable-stack-protector',
+        '-Xfrontend',
+        '-gnone',
+        '-Xfrontend',
+        '-strict-concurrency=minimal',
+        #'-static-stdlib',
         '-Xfrontend',
         '-function-sections',
-        '-Xfrontend',
-        '-data-sections',
+        #'-Xfrontend',
+        #'-data-sections',
         '-Xcc',
         '-D__MADMACHINE__',
-        '-Xfrontend',
-        '-disable-implicit-string-processing-module-import'
+        # '-Xfrontend',
+        # '-disable-implicit-string-processing-module-import'
     ]
 
-    if p_type == 'executable':
-        flags.append('-static-executable')
-    else:
-        flags.append('-static')
+    # if p_type == 'executable':
+    #     flags.append('-static-executable')
+    # else:
+    #     flags.append('-static')
 
+    if p_type == 'executable':
+        linker = '-use-ld=' + str(util.get_tool_path('ld'))
+        flags += [
+            linker,
+            # '-Xclang-linker',
+            # '-fdriver-only',
+            '-Xclang-linker',
+            '-nostdlib',
+            '-Xclang-linker',
+            '-nostdlibinc',
+            '-Xclang-linker',
+            '-nostdinc',
+            '-Xclang-linker',
+            '-nostdinc++',
+            '-Xclang-linker',
+            '-nobuiltininc',
+
+        ]
 
     board = get_board_name()
     if len(board) != 0:
         flags.append('-D' + board.upper())
     elif p_type == 'executable':
-        log.wrn('board is missing in Package.mmp')
+        log.die('The board is missing in Package.mmp')
 
     return flags
 
@@ -266,7 +335,7 @@ def get_swift_gcc_header():
         'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        #'usr/lib/clang/13.0.0/include',
+        #'usr/lib/clang/17/include',
     ]
 
     flags = ['-I ' + str(sdk_path / item) for item in flags]
@@ -278,7 +347,6 @@ def get_swift_gcc_header():
 
 def get_swift_clang_header():
     #Used for newlib constants like errno.h
-
     sdk_path = util.get_sdk_path()
 
     flags = [
@@ -295,7 +363,7 @@ def get_swift_clang_header():
         #'usr/lib/gcc/arm-none-eabi/10.3.1/include-fixed',
 
         #clang compiler-rt header
-        'usr/lib/clang/13.0.0/include',
+        #'usr/lib/clang/17/include',
     ]
 
     flags = ['-I ' + str(sdk_path / item) for item in flags]
@@ -305,97 +373,6 @@ def get_swift_clang_header():
     flags = (' '.join(flags)).split(' ')
     return flags
 
-def get_swift_linker_config(path, p_name):
-    map_path = str(path) + '/' + p_name + '.map'
-
-    flags = [
-        '-u,_OffsetAbsSyms',
-        '-u,_ConfigAbsSyms',
-        '-X',
-        '-N',
-        '--gc-sections',
-        '--build-id=none',
-        '--sort-common=descending',
-        '--sort-section=alignment',
-        #'--no-enum-size-warning',
-        '--print-memory-usage',
-        '-Map',
-         map_path
-    ]
-    flags = ['-Xlinker ' + item for item in flags]
-    flags = (' '.join(flags)).split(' ')
-
-    return flags
-
-def get_swift_linker_script():
-    board = get_board_name()
-    sdk_path = util.get_sdk_path()
-
-    flags = [
-        '-T',
-        str(sdk_path / 'Boards' / board / 'linker/sdram.ld')
-    ]
-    flags = ['-Xlinker ' + item for item in flags]
-    flags = (' '.join(flags)).split(' ')
-
-    return flags
-
-def get_swift_link_search_path():
-    sdk_path = util.get_sdk_path()
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
-        sub_path = '/v7e-m+dp/hard'
-    else:
-        sub_path = '/v7e-m/nofp'
-    
-    flags = [
-        'usr/lib/gcc/arm-none-eabi/10.3.1/thumb' + sub_path,
-        'usr/arm-none-eabi/lib/thumb' + sub_path
-    ]
-    flags = ['-L' + str(sdk_path / item) for item in flags]
-
-    return flags
-
-def get_swift_board_library():
-    sdk_path = util.get_sdk_path()
-    board = get_board_name()
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
-        sub_path = 'eabihf'
-    else:
-        sub_path = 'eabi'
-
-    libraries = ['--whole-archive']
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.obj'))
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a'))
-
-    libraries.append('--no-whole-archive')
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.obj'))
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.a'))
-
-    flags = ['-Xlinker ' + str(item) for item in libraries]
-    flags = (' '.join(flags)).split(' ')
-
-    #flags += ['-lswiftCore']
-
-    return flags
-
-
-def get_swift_gcc_library():
-    libraries = [
-        '--start-group',
-        '-lstdc++',
-        '-lc',
-        '-lg',
-        '-lm',
-        '-lgcc',
-        '--end-group'
-    ]
-
-    flags = ['-Xlinker ' + str(item) for item in libraries]
-    flags = (' '.join(flags)).split(' ')
-
-    return flags
 
 def get_swiftc_flags(p_type, path, p_name):
     flags = []
@@ -416,7 +393,6 @@ def get_swiftc_flags(p_type, path, p_name):
     #     flags += get_swift_board_library()
     #     flags += get_swift_gcc_library()
 
-
     return flags
 
 
@@ -424,6 +400,8 @@ def get_linker_config(path, p_name):
     map_path = str(str(path) + '/' + p_name + '.map')
 
     flags = [
+        '-z',
+        'muldefs',
         '-u,_OffsetAbsSyms',
         '-u,_ConfigAbsSyms',
         '-X',
@@ -434,8 +412,8 @@ def get_linker_config(path, p_name):
         '--sort-section=alignment',
         #'--no-enum-size-warning',
         '--print-memory-usage',
-        '-Map',
-         map_path
+        # '-Map',
+        #  map_path
     ]
     #flags = ['-Xlinker ' + item for item in flags]
     #flags = (' '.join(flags)).split(' ')
@@ -457,8 +435,8 @@ def get_linker_script():
 
 def get_linker_search_path():
     sdk_path = util.get_sdk_path()
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
+    triple, hard_float = get_triple()
+    if hard_float == True:
         sub_path = '/v7e-m+dp/hard'
     else:
         sub_path = '/v7e-m/nofp'
@@ -477,8 +455,8 @@ def get_linker_search_path():
 def get_linker_board_library():
     sdk_path = util.get_sdk_path()
     board = get_board_name()
-    triple = get_triple()
-    if triple == 'thumbv7em-unknown-none-eabihf':
+    triple, hard_float = get_triple()
+    if hard_float == True:
         sub_path = 'eabihf'
     else:
         sub_path = 'eabi'
@@ -532,20 +510,19 @@ def get_linker_flags(p_type, path, p_name):
 
 
 def get_destination(p_type, path, p_name):
-    sdk = str(util.get_sdk_path())
-    bin_dir = str(util.get_bin_path())
-    target = get_triple()
+    swift_root = str(util.get_swift_path())
+    swift_bin = str(util.get_swift_path() / 'usr/bin')
+    triple, hard_float = get_triple()
     cc_flags = get_cc_flags(p_type)
     swiftc_flags = get_swiftc_flags(p_type, path, p_name)
     linker_flags = get_linker_flags(p_type, path, p_name)
     
-
     destination_dic = {
         'version': 2,
-        'sdkRootDir': sdk,
-        'toolchainBinDir': bin_dir,
+        'sdkRootDir': swift_root,
+        'toolchainBinDir': swift_bin,
         'hostTriples': [],
-        'targetTriples': [target],
+        'targetTriples': [triple],
         'extraCCFlags': cc_flags,
         'extraCXXFlags': cc_flags,
         'extraSwiftCFlags': swiftc_flags,
@@ -557,7 +534,6 @@ def get_destination(p_type, path, p_name):
     return js_text
 
 def clean(p_path):
-    #triple = get_triple()
     files = sorted((p_path / '.build' / 'release').glob('*.bin'))
     for file in files:
         file.unlink()
