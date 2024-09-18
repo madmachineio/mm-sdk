@@ -21,10 +21,10 @@ SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
 SWIFTIO_MICRO = {'vid': '0x1fc9',
-                    'pid': '0x0095',
-                    'serial_number': '012345671FC90095',
-                    'sd_image_name': 'micro.img',
-                    'usb2serial_device': 'wch'}
+                'pid': '0x0095',
+                'serial_number': '012345671FC90095',
+                'sd_image_name': 'micro.img',
+                'usb2serial_device': 'wch'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
@@ -49,6 +49,10 @@ triple = "{triple}"
 # If your code involves significant floating-point calculations, please set it to 'true'
 hard-float = {hard_float}
 
+# Enable or disable float register below
+# If your code involves significant floating-point calculations, please set it to 'true'
+float-abi = {float_abi}
+
 # Reserved for future use 
 version = 1
 """
@@ -64,7 +68,7 @@ def initialize(content):
         log.die('decoding Package.mmp failed!')
 
 
-def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='true'):    
+def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='true', float_abi='false'):    
     if p_type == 'library':
         board = ''
 
@@ -78,7 +82,7 @@ def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='tr
     if triple.endswith('hf') and hard_float != 'true':
         log.die('The specified triple and hard-float settings are in conflict!')
     
-    content = DEFAULT_MMP_MANIFEST.format(name=board, triple=triple, hard_float=hard_float)
+    content = DEFAULT_MMP_MANIFEST.format(name=board, triple=triple, hard_float=hard_float, float_abi=float_abi)
 
     return content
 
@@ -108,12 +112,26 @@ def get_triple():
     if triple.startswith('thumbv7em'):
         triple = 'armv7em-none-none-eabi'
 
+    return triple
+
+
+def get_float_type():
+    hard_float = TOML_CONTENT.get('hard-float')
+    float_abi = TOML_CONTENT.get('float-abi')
+
+    if hard_float == False and float_abi == True:
+        log.die('The specified float settings are in conflict!')
+
     if hard_float is None:
         log.wrn('The hard-float setting is missing, defualting to true!')
         hard_float = True
+    
+    if float_abi is None:
+        log.wrn('The float-abi setting is missing, defualting to false!')
+        float_abi = False
+    
+    return hard_float, float_abi
 
-
-    return triple, hard_float
 
 def get_board_info(info):
     board = TOML_CONTENT.get('board').strip()
@@ -129,19 +147,22 @@ def get_board_info(info):
 
 
 def get_c_arch():
-    triple, hard_float = get_triple()
+    hard_float, float_abi = get_float_type()
     if hard_float == True:
         flags = [
             '-mcpu=cortex-m7',
             '-mhard-float',
-            '-mfloat-abi=hard'
         ]
     else:
         flags = [
             '-mcpu=cortex-m7+nofp',
             '-msoft-float',
-            '-mfloat-abi=soft'
         ]
+    
+    if float_abi == True:
+        flags += ['-mfloat-abi=hard']
+    else:
+        flags += ['-mfloat-abi=soft']
     
     return flags
 
@@ -154,13 +175,7 @@ def get_c_predefined():
     return flags
 
 def get_gcc_include_path():
-    triple, hard_float = get_triple()
     sdk_path = util.get_sdk_path()
-
-    if hard_float == True:
-        sub_path = '/v7e-m+dp/hard'
-    else:
-        sub_path = '/v7e-m/nofp'
 
     flags = [
         #newlib header
@@ -183,13 +198,7 @@ def get_gcc_include_path():
     return flags
 
 def get_clang_include_path():
-    triple, hard_float = get_triple()
     sdk_path = util.get_sdk_path()
-
-    if hard_float == True:
-        sub_path = '/v7e-m+dp/hard'
-    else:
-        sub_path = '/v7e-m/nofp'
 
     flags = [
         #newlib header
@@ -228,7 +237,8 @@ def get_cc_flags(p_type):
 
 
 def get_swift_arch():
-    triple, hard_float = get_triple()
+    triple = get_triple()
+    hard_float, float_abi = get_float_type()
 
     flags = [
         '-target',
@@ -241,8 +251,6 @@ def get_swift_arch():
             'cortex-m7',
             '-Xcc',
             '-mhard-float',
-            '-Xcc',
-            '-mfloat-abi=hard'
         ]
     else:
         flags += [
@@ -250,10 +258,19 @@ def get_swift_arch():
             'cortex-m7+nofp',
             '-Xcc',
             '-msoft-float',
+        ]
+
+    if float_abi == True:
+        flags += [
+            '-Xcc',
+            '-mfloat-abi=hard'
+        ]
+    else:
+        flags += [
             '-Xcc',
             '-mfloat-abi=soft'
         ]
-    
+
     return flags
 
 def get_swift_predefined(p_type):
@@ -305,7 +322,6 @@ def get_swift_predefined(p_type):
             '-nostdinc++',
             '-Xclang-linker',
             '-nobuiltininc',
-
         ]
 
     board = get_board_name()
@@ -313,6 +329,22 @@ def get_swift_predefined(p_type):
         flags.append('-D' + board.upper())
     elif p_type == 'executable':
         log.die('The board is missing in Package.mmp')
+
+    return flags
+
+
+def get_swift_library():
+    sdk_path = util.get_sdk_path()
+
+    flags = [
+        'lib/swift'
+    ]
+
+    flags = ['-I ' + str(sdk_path / item) for item in flags]
+    flags = (' '.join(flags)).split(' ')
+
+    #flags = ['-Xfrontend ' + item for item in flags]
+    #flags = (' '.join(flags)).split(' ')
 
     return flags
 
@@ -379,7 +411,8 @@ def get_swiftc_flags(p_type, path, p_name):
 
     flags += get_swift_arch()
     flags += get_swift_predefined(p_type)
-    
+    flags += get_swift_library()
+
     #TODO, arm-2d needs the clang headers to be compiled!
     flags += get_swift_gcc_header()
     #flags += get_swift_clang_header()
@@ -426,7 +459,7 @@ def get_linker_script():
 
     flags = [
         '-T',
-        str(sdk_path / 'Boards' / board / 'linker/sdram.ld')
+        str(sdk_path / 'boards' / board / 'linker/sdram.ld')
     ]
     #flags = ['-Xlinker ' + item for item in flags]
     #flags = (' '.join(flags)).split(' ')
@@ -435,15 +468,19 @@ def get_linker_script():
 
 def get_linker_search_path():
     sdk_path = util.get_sdk_path()
-    triple, hard_float = get_triple()
+    hard_float, float_abi = get_float_type()
+
     if hard_float == True:
-        sub_path = '/v7e-m+dp/hard'
+        if float_abi == True:
+            sub_path = 'v7e-m+dp/hard'
+        else:
+            sub_path = 'v7e-m+dp/softfp'
     else:
-        sub_path = '/v7e-m/nofp'
+        sub_path = 'v7e-m/nofp'
     
     flags = [
-        'usr/lib/gcc/arm-none-eabi/10.3.1/thumb' + sub_path,
-        'usr/arm-none-eabi/lib/thumb' + sub_path
+        'usr/lib/gcc/arm-none-eabi/10.3.1/thumb/' + sub_path,
+        'usr/arm-none-eabi/lib/thumb/' + sub_path
     ]
     flags = ['-L' + str(sdk_path / item) for item in flags]
     flags = [item for item in flags]
@@ -455,25 +492,53 @@ def get_linker_search_path():
 def get_linker_board_library():
     sdk_path = util.get_sdk_path()
     board = get_board_name()
-    triple, hard_float = get_triple()
+    hard_float, float_abi = get_float_type()
+
     if hard_float == True:
-        sub_path = 'eabihf'
+        if float_abi == True:
+            sub_path = 'hard'
+        else:
+            sub_path = 'softfp'
     else:
-        sub_path = 'eabi'
+        sub_path = 'nofp'
 
     libraries = ['--whole-archive']
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.obj'))
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a'))
+    libraries += sorted((sdk_path / 'boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.obj'))
+    libraries += sorted((sdk_path / 'boards' / board / 'lib/thumbv7em' / sub_path / 'whole').glob('[a-z]*.a'))
 
     libraries.append('--no-whole-archive')
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.obj'))
-    libraries += sorted((sdk_path / 'Boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.a'))
+    libraries += sorted((sdk_path / 'boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.obj'))
+    libraries += sorted((sdk_path / 'boards' / board / 'lib/thumbv7em' / sub_path / 'nowhole').glob('[a-z]*.a'))
 
     flags = [str(item) for item in libraries]
     #flags = ['-Xlinker ' + str(item) for item in libraries]
     #flags = (' '.join(flags)).split(' ')
 
     #flags += ['-lswiftCore']
+
+    return flags
+
+
+def get_linker_library():
+    sdk_path = util.get_sdk_path()
+    swift_path = util.get_swift_path()
+    triple = get_triple()
+    hard_float, float_abi = get_float_type()
+    
+    if hard_float == True:
+        if float_abi == True:
+            sub_path = 'hard'
+        else:
+            sub_path = 'softfp'
+    else:
+        sub_path = 'nofp'
+
+    libraries = sorted((sdk_path / 'lib/thumbv7em' / sub_path).glob('[a-z]*.a'))
+    libraries.append('--whole-archive')
+    libraries += sorted((swift_path / 'usr/lib/swift/embedded' / triple).glob('[a-z]*.a'))
+    libraries.append('--no-whole-archive')
+
+    flags = [str(item) for item in libraries]
 
     return flags
 
@@ -504,6 +569,7 @@ def get_linker_flags(p_type, path, p_name):
         flags += get_linker_script()
         flags += get_linker_search_path()
         flags += get_linker_board_library()
+        flags += get_linker_library()
         flags += get_linker_gcc_library()
     
     return flags
@@ -512,7 +578,7 @@ def get_linker_flags(p_type, path, p_name):
 def get_destination(p_type, path, p_name):
     swift_root = str(util.get_swift_path())
     swift_bin = str(util.get_swift_path() / 'usr/bin')
-    triple, hard_float = get_triple()
+    triple = get_triple()
     cc_flags = get_cc_flags(p_type)
     swiftc_flags = get_swiftc_flags(p_type, path, p_name)
     linker_flags = get_linker_flags(p_type, path, p_name)

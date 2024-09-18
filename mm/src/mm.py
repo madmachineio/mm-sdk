@@ -69,7 +69,7 @@ def build_project(args):
     triple = None
 
     if p_type == 'executable':
-        triple, hard_float = mmp.get_triple()
+        triple = mmp.get_triple()
         path = PROJECT_PATH / '.build' / triple / 'release'
 
     js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
@@ -99,7 +99,7 @@ def download_project_to_partition(partition):
         log.die('Download to partition is not supported on SwiftIOBoard')
 
     file_name = mmp.get_board_info('sd_image_name')
-    triple, hard_float = mmp.get_triple()
+    triple = mmp.get_triple()
     image = PROJECT_PATH / '.build' / triple / 'release' / file_name
 
     if not image.is_file():
@@ -131,7 +131,7 @@ def download_project_to_sd():
         log.die(system + ' is not supported currently, please copy the image file manually')
 
     file_name = mmp.get_board_info('sd_image_name')
-    triple, hard_float = mmp.get_triple()
+    triple = mmp.get_triple()
     image = PROJECT_PATH / '.build' / triple / 'release' / file_name
 
     if not image.is_file():

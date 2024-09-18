@@ -103,8 +103,3 @@ def run_command(flags):
     
     log.inf(cmd_out.decode('utf-8'), prefix=False, level=log.VERBOSE_DBG)
     return cmd_out.decode('utf-8')
-
-
-
-
-
