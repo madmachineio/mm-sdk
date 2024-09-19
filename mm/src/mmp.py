@@ -81,7 +81,7 @@ def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='tr
     
     if triple.endswith('hf') and hard_float != 'true':
         log.die('The specified triple and hard-float settings are in conflict!')
-    
+
     content = DEFAULT_MMP_MANIFEST.format(name=board, triple=triple, hard_float=hard_float, float_abi=float_abi)
 
     return content
@@ -108,14 +108,14 @@ def get_triple():
 
     if triple.endswith('hf') and hard_float == False:
         log.die('The specified triple and hard-float settings are in conflict!')
-    
+
     if triple.startswith('thumbv7em'):
         triple = 'armv7em-none-none-eabi'
 
     return triple
 
 
-def get_float_type():
+def get_float_type(wrn=False):
     hard_float = TOML_CONTENT.get('hard-float')
     float_abi = TOML_CONTENT.get('float-abi')
 
@@ -123,13 +123,15 @@ def get_float_type():
         log.die('The specified float settings are in conflict!')
 
     if hard_float is None:
-        log.wrn('The hard-float setting is missing, defualting to true!')
+        if wrn:
+            log.wrn('The hard-float setting is missing in Package.mmp, defualting to true!')
         hard_float = True
-    
+
     if float_abi is None:
-        log.wrn('The float-abi setting is missing, defualting to false!')
+        if wrn:
+            log.wrn('The float-abi setting is missing in Package.mmp, defualting to false!')
         float_abi = False
-    
+
     return hard_float, float_abi
 
 
@@ -166,6 +168,7 @@ def get_c_arch():
     
     return flags
 
+
 def get_c_predefined():
     flags = [
         '-nostdinc',
@@ -173,6 +176,7 @@ def get_c_predefined():
         '-D__MADMACHINE__'
     ]
     return flags
+
 
 def get_gcc_include_path():
     sdk_path = util.get_sdk_path()
@@ -196,6 +200,7 @@ def get_gcc_include_path():
 
     flags = ['-I' + str(sdk_path / item) for item in flags] 
     return flags
+
 
 def get_clang_include_path():
     sdk_path = util.get_sdk_path()
@@ -234,11 +239,9 @@ def get_cc_flags(p_type):
     return flags
 
 
-
-
 def get_swift_arch():
     triple = get_triple()
-    hard_float, float_abi = get_float_type()
+    hard_float, float_abi = get_float_type(True)
 
     flags = [
         '-target',

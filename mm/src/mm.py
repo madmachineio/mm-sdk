@@ -451,12 +451,13 @@ def main():
     if args.verbose:
         log.set_verbosity(log.VERBOSE_DBG)
 
+    sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
     system = platform.system()
     if system == 'Darwin':
         swift_path = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
-    
-    sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
-    
+    elif system == 'Linux':
+        swift_path = sdk_path
+
     util.set_sdk_path(swift_path, sdk_path)
 
     PROJECT_PATH = Path('.').resolve()
