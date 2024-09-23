@@ -279,7 +279,7 @@ def ci_build(args):
 
     for board in boards:
         for hard_float, float_abi in hard_float_abi:
-            log.inf('Building for ' + triple)
+            log.inf('Building for ' + triple + 'hard-float = ' + hard_float + 'float_abi = ' + float_abi)
             #(PROJECT_PATH / '.build').unlink(missing_ok=True)
             if (PROJECT_PATH / '.build').exists():
                 shutil.rmtree((PROJECT_PATH / '.build'))
