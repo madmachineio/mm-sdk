@@ -295,9 +295,17 @@ def ci_build(args):
             build_process(path=path, p_type=p_type, p_name=p_name, destination=destination, dest_data=js_data)
 
             if p_type == 'executable' and (path / p_name).exists():
+                float_type = ''
+                if hard_float.startswith('true') and float_abi.startswith('true'):
+                    float_type = 'hard'
+                elif hard_float.startswith('true') and float_abi.startswith('false'):
+                    float_type = 'softfp'
+                else:
+                    float_type = 'nofp'
+                    
                 log.inf('Building for ' + board)
                 source = path / mmp.get_board_info('sd_image_name')
-                target = PROJECT_PATH / triple / board / p_name
+                target = PROJECT_PATH / triple / float_type / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
                 shutil.copy(source, target)
     
