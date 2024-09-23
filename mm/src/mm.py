@@ -271,15 +271,19 @@ def ci_build(args):
     else:
         boards = ['']
 
-    triples = ['thumbv7em-unknown-none-eabi', 'thumbv7em-unknown-none-eabihf']
+    #triples = ['thumbv7em-unknown-none-eabi', 'thumbv7em-unknown-none-eabihf']
+    triple = 'armv7em-none-none-eabi'
+    hard_float_abi = (#('true', 'true'),
+                      ('true', 'false'),
+                      ('false', 'false'))
 
     for board in boards:
-        for triple in triples:
+        for hard_float, float_abi in hard_float_abi:
             log.inf('Building for ' + triple)
             #(PROJECT_PATH / '.build').unlink(missing_ok=True)
             if (PROJECT_PATH / '.build').exists():
                 shutil.rmtree((PROJECT_PATH / '.build'))
-            mmp_content = mmp.init_manifest(board=board, p_type=p_type, triple=triple)
+            mmp_content = mmp.init_manifest(board=board, p_type=p_type, triple=triple, hard_float=hard_float, float_abi=float_abi)
             mmp.initialize(mmp_content)
             path = PROJECT_PATH / '.build' / triple / 'release'
 
