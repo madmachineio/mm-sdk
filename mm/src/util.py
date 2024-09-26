@@ -32,10 +32,10 @@ def set_sdk_path(swift_path, tool_path, save=False, env_name=None):
     global SWIFT_PATH
 
     if not swift_path.is_dir():
-        log.die(tool_path + "doesn't exists")
+        log.die(str(swift_path) + " doesn't exists")
 
     if not tool_path.is_dir():
-        log.die(tool_path + "doesn't exists")
+        log.die(str(tool_path) + " doesn't exists")
 
     SWIFT_PATH = swift_path
 
