@@ -37,19 +37,61 @@ def init_project(args):
     mmp_manifest.write_text(content, encoding='UTF-8')
 
 
-def build_process(path, p_type, p_name, destination, dest_data):
-    spm.build(p_type=p_type, destination=destination, dest_data=dest_data)
+# def build_with_destination(build_path, p_type, p_name, destination):
+#     spm.destination_build(p_type=p_type, destination=destination)
 
-    if p_type == 'executable' and (path / p_name).exists():
-        bin_path = mmp.create_binary(path=path, name=p_name)
+#     if p_type == 'executable' and (build_path / p_name).exists():
+#         bin_path = mmp.create_binary(build_path=build_path, name=p_name)
+#         image_name = mmp.get_board_info('sd_image_name')
+#         board_name = mmp.get_board_name()
+#         if board_name == 'SwiftIOMicro':
+#             image.create_image(bin_path, build_path, image_name)
+#         elif board_name == 'SwiftIOBoard':
+#             image.create_swiftio_bin(bin_path, build_path, image_name)
+#         else:
+#             log.die('Board name is not specified')
+
+def build_with_sdk(build_path, p_type, p_name):
+    spm.build(p_path=PROJECT_PATH, p_type=p_type)
+
+    if p_type == 'executable' and (build_path / p_name).exists():
+        bin_path = mmp.create_binary(build_path=build_path, name=p_name)
         image_name = mmp.get_board_info('sd_image_name')
         board_name = mmp.get_board_name()
         if board_name == 'SwiftIOMicro':
-            image.create_image(bin_path, path, image_name)
+            image.create_image(bin_path, build_path, image_name)
         elif board_name == 'SwiftIOBoard':
-            image.create_swiftio_bin(bin_path, path, image_name)
+            image.create_swiftio_bin(bin_path, build_path, image_name)
         else:
-            log.die('Board name is not specified')
+            log.die('Board name is not specified') 
+
+# def build_project(args):
+#     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+
+#     if not mmp_manifest.is_file():
+#         log.die('Package.mmp is required to build the project')
+
+#     mmp_content = mmp_manifest.read_text()
+#     mmp.initialize(mmp_content)
+
+#     mmp.clean(p_path=PROJECT_PATH)
+#     spm.initialize()
+#     p_name = spm.get_project_name()
+#     p_type = spm.get_project_type()
+
+#     build_path = ''
+#     triple = None
+
+#     if p_type == 'executable':
+#         triple = mmp.get_triple()
+#         build_path = PROJECT_PATH / '.build' / triple / 'release'
+
+#     mmp.create_temp_sdk_des(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
+
+#     destination = mmp.create_destination(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
+#     build_with_destination(build_path=build_path, p_type=p_type, p_name=p_name, destination=destination)
+
+#     log.inf('Done!')
 
 
 def build_project(args):
@@ -57,7 +99,7 @@ def build_project(args):
 
     if not mmp_manifest.is_file():
         log.die('Package.mmp is required to build the project')
-    
+
     mmp_content = mmp_manifest.read_text()
     mmp.initialize(mmp_content)
 
@@ -65,22 +107,19 @@ def build_project(args):
     spm.initialize()
     p_name = spm.get_project_name()
     p_type = spm.get_project_type()
-    path = ''
+
+    build_path = ''
     triple = None
 
     if p_type == 'executable':
         triple = mmp.get_triple()
-        path = PROJECT_PATH / '.build' / triple / 'release'
+        build_path = PROJECT_PATH / '.build' / triple / 'release'
 
-    js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
-    (PROJECT_PATH / '.build').mkdir(exist_ok=True)
-    destination = PROJECT_PATH / '.build/destination.json'
-    destination.write_text(js_data, encoding='UTF-8')
+    mmp.create_temp_sdk_des(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
+    build_with_sdk(build_path=build_path, p_type=p_type, p_name=p_name)
 
-    build_process(path=path, p_type=p_type, p_name=p_name, destination=destination, dest_data=js_data)
-    
     log.inf('Done!')
-    
+
 
 def download_project_to_partition(partition):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
@@ -239,8 +278,6 @@ def copy_resources(args):
 
     for file in files:
         log.dbg(str(file))
-    
-
 
 
 def add_header(args):
@@ -280,21 +317,18 @@ def ci_build(args):
     for board in boards:
         for hard_float, float_abi in hard_float_abi:
             log.inf('Building for ' + triple + ', hard-float = ' + hard_float + ', float_abi = ' + float_abi)
-            #(PROJECT_PATH / '.build').unlink(missing_ok=True)
             if (PROJECT_PATH / '.build').exists():
                 shutil.rmtree((PROJECT_PATH / '.build'))
             mmp_content = mmp.init_manifest(board=board, p_type=p_type, triple=triple, hard_float=hard_float, float_abi=float_abi)
             mmp.initialize(mmp_content)
-            path = PROJECT_PATH / '.build' / triple / 'release'
+            build_path = PROJECT_PATH / '.build' / triple / 'release'
 
-            js_data = mmp.get_destination(p_type=p_type, path=path, p_name=p_name)
-            (PROJECT_PATH / '.build').mkdir(exist_ok=True)
-            destination = PROJECT_PATH / '.build/destination.json'
-            destination.write_text(js_data, encoding='UTF-8')
+            # destination = mmp.create_destination(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
+            # build_with_destination(build_path=build_path, p_type=p_type, p_name=p_name, destination=destination)
 
-            build_process(path=path, p_type=p_type, p_name=p_name, destination=destination, dest_data=js_data)
-
-            if p_type == 'executable' and (path / p_name).exists():
+            mmp.create_temp_sdk_des(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
+            build_with_sdk(build_path=build_path, p_type=p_type, p_name=p_name)
+            if p_type == 'executable' and (build_path / p_name).exists():
                 float_type = ''
                 if hard_float.startswith('true') and float_abi.startswith('true'):
                     float_type = 'hard'
@@ -304,7 +338,7 @@ def ci_build(args):
                     float_type = 'nofp'
                     
                 log.inf('Building for ' + board)
-                source = path / mmp.get_board_info('sd_image_name')
+                source = build_path / mmp.get_board_info('sd_image_name')
                 target = PROJECT_PATH / triple / float_type / board / p_name
                 target.mkdir(parents=True, exist_ok=True)
                 shutil.copy(source, target)

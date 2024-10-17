@@ -1,7 +1,7 @@
 import toml, json
 from zlib import crc32
 from pathlib import Path
-import util, log
+import util, log, version
 
 SUPPORTED_ARCHS = [
     'thumbv7em-unknown-none-eabi',
@@ -78,7 +78,7 @@ def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='tr
     triple = triple.strip()
     if SUPPORTED_ARCHS.count(triple) == 0:
         log.die('Unknown triple: ' + triple)
-    
+
     if triple.endswith('hf') and hard_float != 'true':
         log.die('The specified triple and hard-float settings are in conflict!')
 
@@ -409,7 +409,7 @@ def get_swift_clang_header():
     return flags
 
 
-def get_swiftc_flags(p_type, path, p_name):
+def get_swiftc_flags(p_type):
     flags = []
 
     flags += get_swift_arch()
@@ -420,20 +420,11 @@ def get_swiftc_flags(p_type, path, p_name):
     flags += get_swift_gcc_header()
     #flags += get_swift_clang_header()
 
-    # Need to add '-nostdlib++' in static-executable-args.lnk
-    # Or '-lclang_rt.builtins-thumbv7em' will be insearted into link command
-    # if p_type == 'executable':
-    #     flags += get_swift_linker_config(path, p_name)
-    #     flags += get_swift_linker_script()
-    #     flags += get_swift_link_search_path()
-    #     flags += get_swift_board_library()
-    #     flags += get_swift_gcc_library()
-
     return flags
 
 
-def get_linker_config(path, p_name):
-    map_path = str(str(path) + '/' + p_name + '.map')
+def get_linker_config(build_path, p_name):
+    map_path = str(str(build_path) + '/' + p_name + '.map')
 
     flags = [
         '-z',
@@ -564,11 +555,11 @@ def get_linker_gcc_library():
     return flags
 
 
-def get_linker_flags(p_type, path, p_name):
+def get_linker_flags(build_path, p_type, p_name):
     flags = []
 
     if p_type == 'executable':
-        flags += get_linker_config(path, p_name)
+        flags += get_linker_config(build_path, p_name)
         flags += get_linker_script()
         flags += get_linker_search_path()
         flags += get_linker_board_library()
@@ -578,13 +569,13 @@ def get_linker_flags(p_type, path, p_name):
     return flags
 
 
-def get_destination(p_type, path, p_name):
+def get_destination(build_path, p_type, p_name):
     swift_root = str(util.get_swift_path())
     swift_bin = str(util.get_swift_path() / 'usr/bin')
     triple = get_triple()
     cc_flags = get_cc_flags(p_type)
-    swiftc_flags = get_swiftc_flags(p_type, path, p_name)
-    linker_flags = get_linker_flags(p_type, path, p_name)
+    swiftc_flags = get_swiftc_flags(p_type)
+    linker_flags = get_linker_flags(build_path, p_type, p_name)
     
     destination_dic = {
         'version': 2,
@@ -602,6 +593,119 @@ def get_destination(p_type, path, p_name):
 
     return js_text
 
+
+def create_destination(p_path, build_path, p_type, p_name):
+    js_text = get_destination(build_path=build_path, p_type=p_type, p_name=p_name)
+    (p_path / '.build').mkdir(exist_ok=True)
+    destination = p_path / '.build/destination.json'
+    destination.write_text(js_text, encoding='UTF-8')
+
+    return destination
+
+
+def get_sdk_info(name):
+    sdk_version = version.__VERSION__
+
+    info_dic = {
+        'schemaVersion': '1.0',
+        'artifacts': {
+            name: {
+                'variants': [
+                    {
+                        'path': name
+                    }
+                ],
+                'type': 'swiftSDK',
+                'version': sdk_version
+            }
+        }
+    }
+
+    js_text = json.dumps(info_dic, indent=2)
+    log.dbg(js_text)
+
+    return js_text
+
+def get_swift_sdk():
+    triple = get_triple()
+    sdk_root = str(util.get_sdk_path())
+    swift_lib_path = str(util.get_swift_path() / 'usr/lib/swift')
+    swift_static_lib_path = str(util.get_swift_path() / 'usr/lib/swift_static')
+
+    swift_sdk_dic = {
+        'schemaVersion': '4.0',
+        'targetTriples': {
+            triple: {
+                'sdkRootPath': sdk_root,
+                'toolsetPaths': [
+                    'toolset.json'
+                ],
+                'swiftResourcesPath': swift_lib_path,
+                'swiftStaticResourcesPath': swift_static_lib_path
+            }
+        }
+    }
+
+    js_text = json.dumps(swift_sdk_dic, indent=2)
+    log.dbg(js_text)
+
+    return js_text
+
+
+def get_toolset(build_path, p_type, p_name):
+    cc_flags = get_cc_flags(p_type)
+    swiftc_flags = get_swiftc_flags(p_type)
+    linker_flags = get_linker_flags(build_path, p_type, p_name)
+    linker_path = str(util.get_tool_path('ld'))
+
+    toolset_dic = ''
+
+    if p_type == 'executable':
+        toolset_dic = {
+            'schemaVersion': '1.0',
+            'swiftCompiler': {
+                'extraCLIOptions': swiftc_flags
+            },
+            'cCompiler': {
+                'extraCLIOptions': cc_flags
+            },
+            'linker': {
+                'path': linker_path,
+                'extraCLIOptions': linker_flags
+            }
+        }
+    else:
+        toolset_dic = {
+            'schemaVersion': '1.0',
+            'swiftCompiler': {
+                'extraCLIOptions': swiftc_flags
+            },
+            'cCompiler': {
+                'extraCLIOptions': cc_flags
+            }
+        }
+
+    js_text = json.dumps(toolset_dic, indent = 2)
+    log.dbg(js_text)
+
+    return js_text
+
+
+def create_temp_sdk_des(p_path, build_path, p_type, p_name):
+    (p_path / '.build' / util.ARTIFACT_PATH  / util.SDK_ID).mkdir(parents=True, exist_ok=True)
+    info_path = p_path / '.build' / util.ARTIFACT_PATH / 'info.json'
+    swift_sdk_path = p_path / '.build' / util.ARTIFACT_PATH  / util.SDK_ID / 'swift-sdk.json'
+    toolset_path = p_path / '.build' / util.ARTIFACT_PATH  / util.SDK_ID / 'toolset.json'
+
+    info_text = get_sdk_info(name=util.SDK_ID)
+    swift_sdk_text = get_swift_sdk()
+    toolset_text = get_toolset(build_path=build_path, p_type=p_type, p_name=p_name)
+
+    info_path.write_text(info_text, encoding='UTF-8')
+    swift_sdk_path.write_text(swift_sdk_text, encoding='UTF-8')
+    toolset_path.write_text(toolset_text, encoding='UTF-8')
+
+
 def clean(p_path):
     files = sorted((p_path / '.build' / 'release').glob('*.bin'))
     for file in files:
@@ -611,9 +715,10 @@ def clean(p_path):
     for file in files:
         file.unlink()
 
-def create_binary(path, name):
-    elf_path = path / name
-    bin_path = path / (name + '.bin')
+
+def create_binary(build_path, name):
+    elf_path = build_path / name
+    bin_path = build_path / (name + '.bin')
 
     flags = [
         util.get_tool('objcopy'),

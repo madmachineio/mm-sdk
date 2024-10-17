@@ -1,6 +1,6 @@
 import os, subprocess
 from pathlib import Path
-import log
+import log, version
 
 
 
@@ -8,6 +8,10 @@ SDK_ENV = ''
 SDK_PATH = ''
 
 SWIFT_PATH = ''
+
+SDK_ID = 'madmachine-sdk'
+ARTIFACT_PATH = SDK_ID + '-' + str(version.__VERSION__) + '.artifactbundle'
+
 
 sdk_tool_set = {
     'ld': 'usr/bin/arm-none-eabi-ld',

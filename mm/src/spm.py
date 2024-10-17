@@ -124,28 +124,42 @@ def get_project_type():
     return project_tpye
 
 
-def build(p_type, destination, dest_data):
+# def destination_build(p_type, destination):
+#     flags = [
+#         util.get_tool('swift-build'),
+#         '-c release',
+#         '--destination',
+#         util.quote_string(destination),
+#     ]
+
+#     if p_type == 'executable':
+#         log.inf('Building executable...')
+#     else:
+#         log.inf('Building library...')
+
+#     if util.command(flags):
+#        log.die('compile failed')
+
+#     # result = util.run_command(flags)
+
+
+def build(p_path, p_type):
     flags = [
         util.get_tool('swift-build'),
         '-c release',
-        '--destination',
-        util.quote_string(destination),
+        '--swift-sdks-path',
+        util.quote_string(p_path / '.build'),
+        '--swift-sdk',
+        util.SDK_ID
     ]
 
     if p_type == 'executable':
         log.inf('Building executable...')
-        #linker_flags = json.loads(dest_data).get('extraLinkerFlags')
-        #linker_flags = ['-Xlinker ' + item for item in linker_flags]
-        #flags += linker_flags
     else:
         log.inf('Building library...')
 
     if util.command(flags):
        log.die('compile failed')
-
-    # result = util.run_command(flags)
-    # print('--------------')
-    # print(result)
 
 
 def clean():
