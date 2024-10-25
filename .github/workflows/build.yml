@@ -5,6 +5,7 @@ on:
   push:
     branches:
       - main
+      - develop
       - 'fix/**'
       - 'feature/**'
       - 'release/**'
@@ -21,11 +22,11 @@ jobs:
     name: Build on ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-22.04, macos-12]
+        os: [ubuntu-22.04, macos-13]
     runs-on: ${{ matrix.os }}
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Check action type
         run: |
@@ -35,9 +36,9 @@ jobs:
           echo "Branch: `git rev-parse --abbrev-ref HEAD`"
 
       - name: Prepare Python environment
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.12'
 
       - name: Prepare requirements
         id: prepare-requirements
@@ -57,7 +58,7 @@ jobs:
           mv dist/mm/* $GITHUB_WORKSPACE/exe
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: mm-script-executable-${{ matrix.os }}
           path: |

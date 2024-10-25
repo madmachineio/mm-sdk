@@ -312,7 +312,7 @@ def get_swift_predefined(p_type):
     if p_type == 'executable':
         linker = '-use-ld=' + str(util.get_tool_path('ld'))
         flags += [
-            linker,
+            # linker,
             # '-Xclang-linker',
             # '-fdriver-only',
             '-Xclang-linker',
