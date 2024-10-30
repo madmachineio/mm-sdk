@@ -4,15 +4,14 @@ name: windows-build
 on:
   push:
     branches:
-      - main
-      - develop
-      - 'fix/**'
       - 'feature/**'
+      - 'fix/**'
+      - develop
+      - main
       - 'release/**'
   pull_request:
     branches:
       - main
-      - 'release/**'
   schedule:
     - cron: '1 0 * * 4'
 
