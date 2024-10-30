@@ -53,7 +53,7 @@ jobs:
           cd $GITHUB_WORKSPACE
           mkdir exe
           cd ./mm/src
-          pyinstaller -F ./mm.py
+          pyinstaller ./mm.py
           mv dist/mm/* $GITHUB_WORKSPACE/exe
           # pyinstaller -F ./mm.py
           # mv dist/* $GITHUB_WORKSPACE/exe
