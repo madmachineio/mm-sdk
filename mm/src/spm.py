@@ -213,7 +213,13 @@ def edit_package(package, revision):
 def host_test():
     flags = [
         util.get_tool('swift-test'),
-        '--enable-code-coverage'
+        '-c',
+        'release',
+        '--enable-code-coverage',
+        '-Xswiftc',
+        '-enable-experimental-feature',
+        '-Xswiftc',
+        'Extern'
     ]
 
     if util.command(flags):
