@@ -229,6 +229,8 @@ def host_test():
 def get_codecov_path():
     flags = [
         util.get_tool('swift-test'),
+        '-c',
+        'release',
         '--show-codecov-path'
     ]
 
