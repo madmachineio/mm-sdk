@@ -192,7 +192,7 @@ def download_to_sd_with_target_name(serial_name, image, file_name):
 
 def download_to_sd(args):
     if args.file is None:
-        log.die('Plz specify the file path')
+        log.die('Please specify the file path')
 
     f = args.file
     if not f.is_file():
@@ -208,7 +208,7 @@ def download_to_sd(args):
 
 def download_to_partition(args):
     if args.file is None or args.partition is None:
-        log.die('Plz specify the file path and target partition name')
+        log.die('Please specify the file path and target partition name')
     
     f = args.file
     if not f.is_file():
@@ -218,7 +218,7 @@ def download_to_partition(args):
 
 def download_to_ram(args):
     if args.file is None or args.address is None:
-        log.die('Plz specify the file path and target RAM address')
+        log.die('Please specify the file path and target RAM address')
 
     address = int(args.address, 16)
     log.inf(address)
@@ -282,7 +282,7 @@ def copy_resources(args):
 
 def add_header(args):
     if args.file is None:
-        log.die('Plz specify the file path')
+        log.die('Please specify the file path')
 
     if args.address is None:
         log.wrn('Image default address 0x80000000')
