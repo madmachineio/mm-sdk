@@ -131,7 +131,7 @@ def download_project_to_partition(partition):
     mmp.initialize(content)
 
     board_name = mmp.get_board_name()
-    if board_name is None:
+    if board_name is None or board_name == '':
         log.die('Board name is not specified')
 
     if board_name != 'SwiftIOMicro':
