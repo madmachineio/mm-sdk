@@ -2,7 +2,7 @@ import json, shutil
 from pathlib import Path
 import util, log
 
-DEFAULT_LIB_MANIFEST = """// swift-tools-version: 6.1
+DEFAULT_LIB_MANIFEST = """// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
@@ -27,7 +27,7 @@ let package = Package(
 )
 """
 
-DEFAULT_EXE_MANIFEST = """// swift-tools-version: 6.1
+DEFAULT_EXE_MANIFEST = """// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
 
 import PackageDescription
