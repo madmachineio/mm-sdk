@@ -31,27 +31,7 @@ The latest features would be added to this SDK first and then integrated into th
 
 Install XCode and open it so it could install any components that needed.
 
-### Ubuntu 18.04
-
-```bash
-sudo apt-get install \
-          binutils \
-          git \
-          libc6-dev \
-          libcurl4 \
-          libedit2 \
-          libgcc-5-dev \
-          libpython2.7 \
-          libsqlite3-0 \
-          libstdc++-5-dev \
-          libxml2 \
-          pkg-config \
-          tzdata \
-          zlib1g-dev
-```
-
-
-### Ubuntu 20.04
+### Ubuntu 22.04
 
 ```bash
 sudo apt-get install \
@@ -59,18 +39,43 @@ sudo apt-get install \
           git \
           gnupg2 \
           libc6-dev \
-          libcurl4 \
+          libcurl4-openssl-dev \
           libedit2 \
-          libgcc-9-dev \
-          libpython2.7 \
+          libgcc-11-dev \
+          libpython3-dev \
           libsqlite3-0 \
-          libstdc++-9-dev \
-          libxml2 \
+          libstdc++-11-dev \
+          libxml2-dev \
+          libz3-dev \
+          pkg-config \
+          python3-lldb-13 \
+          tzdata \
+          unzip \
+          zlib1g-dev
+```
+
+
+### Ubuntu 24.04
+
+```bash
+sudo apt-get install \
+          binutils \
+          git \
+          gnupg2 \
+          libc6-dev \
+          libcurl4-openssl-dev \
+          libedit2 \
+          libgcc-13-dev \
+          libncurses-dev \
+          libpython3-dev \
+          libsqlite3-0 \
+          libstdc++-13-dev \
+          libxml2-dev \
           libz3-dev \
           pkg-config \
           tzdata \
-          zlib1g-dev \
-          libncurses5
+          unzip \
+          zlib1g-dev
 ```
 ## Download the mm-sdk
 
@@ -97,31 +102,30 @@ python3 ~/mm-sdk/mm/src/mm.py init -b SwiftIOMicro
 
 The `Package.swift` should look like below
 ```swift
-// swift-tools-version:5.3
+// swift-tools-version: 5.9
 // The swift-tools-version declares the minimum version of Swift required to build this package.
+
 import PackageDescription
+
 let package = Package(
-    name: "DemoProgram",
+    name: "Hello",
     dependencies: [
         // Dependencies declare other packages that this package depends on.
-        .package(url: "https://github.com/madmachineio/SwiftIO.git", .upToNextMajor(from: "0.0.1")),
-        .package(url: "https://github.com/madmachineio/MadBoards.git", .upToNextMajor(from: "0.0.1")),
-        .package(url: "https://github.com/madmachineio/MadDrivers.git", .upToNextMajor(from: "0.0.1")),
+        .package(url: "https://github.com/madmachineio/SwiftIO.git", branch: "main"),
+        .package(url: "https://github.com/madmachineio/MadBoards.git", branch: "main"),
+        // .package(url: "https://github.com/madmachineio/MadDrivers.git", branch: "main"),
     ],
     targets: [
-        // Targets are the basic building blocks of a package. A target can define a module or a test suite.
-        // Targets can depend on other targets in this package, and on products in packages this package depends on.
-        .target(
-            name: "DemoProgram",
+        // Targets are the basic building blocks of a package, defining a module or a test suite.
+        // Targets can depend on other targets in this package and products from dependencies.
+        .executableTarget(
+            name: "Hello",
             dependencies: [
                 "SwiftIO",
                 "MadBoards",
-                // use specific library would speed up the compile procedure
-                .product(name: "MadDrivers", package: "MadDrivers")
+                // Use specific library name rather than "MadDrivers" would speed up the build procedure.
+                // .product(name: "MadDrivers", package: "MadDrivers")
             ]),
-        .testTarget(
-            name: "DemoProgramTests",
-            dependencies: ["DemoProgram"]),
     ]
 )
 ```
@@ -138,21 +142,7 @@ python3 ~/mm-sdk/mm/src/mm.py build
 ```
 
 
-## Download an executable to the board
-
-After a successful building, there would be `.build/release/micro.bin` in your project directory. Note that the `.build` directory is hiden by default.
-
-Follow those steps to download the executable:
-
-1. Insert SD card to the board and connect the it to your computer through an USB cable
-2. Press the **Download** button and wait the onboard RGB LED turns to static **green**)
-2. A USB disk drive should be mounted on your computer
-3. Copy the `micro.bin` to the SD card root directory
-4. Eject the USB drive and the program would run automatically
-
-## Download an executable to the board using command(Only on macOS now)
-
-After mounting the SD card:
+## Download an executable to the board using command(Only on macOS and Linux now)
 
 ```shell
 cd ~/Documents/DemoProgram
@@ -163,4 +153,4 @@ or
 python3 ~/mm-sdk/mm/src/mm.py download
 ```
 
-This command would find the correspond bin file, copy it to the SD card and eject the SD card automatically
+This command would find the correspond img file, copy it to the flash storage.
