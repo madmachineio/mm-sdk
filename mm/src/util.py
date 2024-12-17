@@ -16,7 +16,7 @@ ARTIFACT_PATH = SDK_ID + '-' + str(version.__VERSION__) + '.artifactbundle'
 sdk_tool_set = {
     'ld': 'usr/bin/arm-none-eabi-ld',
     'objcopy': 'usr/bin/arm-none-eabi-objcopy',
-    'serial-loader': 'Boards/SerialLoader.bin'
+    'serial-loader': 'boards/SerialLoader.bin'
 }
 
 swift_tool_set = {
