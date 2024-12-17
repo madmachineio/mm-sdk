@@ -90,7 +90,7 @@ def init_serial_device(device_name):
         try:
             SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
         except IOError:
-            log.wrn('Device or resource busy! Plz make sure it is not in use!')
+            log.wrn('Device or resource busy! Please make sure it is not in use!')
 
         if SERIAL_PORT is not None and SERIAL_PORT.is_open:
             SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
@@ -250,7 +250,9 @@ def sync(try_count = 6):
     result = False
     previous_timeout = SERIAL_PORT.timeout
     
-    SERIAL_PORT.timeout = 0.2
+    SERIAL_PORT.timeout = 0.25
+    # Clear the USB-Serial chip buffer by reading
+    SERIAL_PORT.read(MAX_PAYLOAD_LENGTH)
     print('Serial port synchronizing', end = '', flush = True)
     while count < try_count:
         count += 1
