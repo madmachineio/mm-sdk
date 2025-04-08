@@ -78,8 +78,7 @@ def init_manifest(p_name, p_type):
         '--name ' + p_name
     ]
 
-    ret = util.run_command(flags)
-    log.inf(ret, level=log.VERBOSE_DBG)
+    _ = util.run_command(flags)
 
     if p_type == 'library':
         content = DEFAULT_LIB_MANIFEST

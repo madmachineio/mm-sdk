@@ -125,12 +125,12 @@ def get_float_type(wrn=False):
 
     if hard_float is None:
         if wrn:
-            log.wrn('The hard-float setting is missing in Package.mmp, defualting to true!')
+            log.wrn('The hard-float setting is missing in Package.mmp, defaulting to true!')
         hard_float = True
 
     if float_abi is None:
         if wrn:
-            log.wrn('The float-abi setting is missing in Package.mmp, defualting to false!')
+            log.wrn('The float-abi setting is missing in Package.mmp, defaulting to false!')
         float_abi = False
 
     return hard_float, float_abi
@@ -623,7 +623,7 @@ def get_sdk_info(name):
     }
 
     js_text = json.dumps(info_dic, indent=2)
-    log.dbg(js_text)
+    # log.dbg(js_text)
 
     return js_text
 
@@ -648,7 +648,7 @@ def get_swift_sdk():
     }
 
     js_text = json.dumps(swift_sdk_dic, indent=2)
-    log.dbg(js_text)
+    # log.dbg(js_text)
 
     return js_text
 
@@ -687,7 +687,7 @@ def get_toolset(build_path, p_type, p_name):
         }
 
     js_text = json.dumps(toolset_dic, indent = 2)
-    log.dbg(js_text)
+    # log.dbg(js_text)
 
     return js_text
 

@@ -1,7 +1,7 @@
 import os, subprocess
 from pathlib import Path
 import log, version
-
+import re
 
 
 SDK_ENV = ''
@@ -36,10 +36,10 @@ def set_sdk_path(swift_path, tool_path, save=False, env_name=None):
     global SWIFT_PATH
 
     if not swift_path.is_dir():
-        log.die(str(swift_path) + " doesn't exists")
+        log.die(str(swift_path) + " doesn't exist")
 
     if not tool_path.is_dir():
-        log.die(str(tool_path) + " doesn't exists")
+        log.die(str(tool_path) + " doesn't exist")
 
     SWIFT_PATH = swift_path
 
@@ -57,21 +57,57 @@ def get_swift_path():
     return SWIFT_PATH
 
 def get_tool_path(tool):
-    pos = swift_tool_set.get(tool)
-    if pos is not None:
-        path = Path(SWIFT_PATH / pos)
+    subpath = swift_tool_set.get(tool)
+    if subpath is not None:
+        tool_path = Path(SWIFT_PATH / subpath)
     else:
-        pos = sdk_tool_set.get(tool)
-        path = Path(SDK_PATH / pos)
+        subpath = sdk_tool_set.get(tool)
+        tool_path = Path(SDK_PATH / subpath)
 
-    if not path.is_file():
-        log.die('cannot find ' + str(path))
+    if not tool_path.is_file():
+        log.die('cannot find ' + str(tool_path))
 
-    return path
+    return tool_path
 
 def get_tool(tool):
     return quote_string(get_tool_path(tool))
 
+
+def check_swift_version(prefix, path, minimum):
+    swiftc = Path(path / 'usr/bin/swiftc')
+    if not swiftc.is_file():
+        return False
+
+    cmd = quote_string(swiftc) + ' -v'
+
+    p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    ret = p.wait()
+    cmd_out, cmd_err = p.communicate()
+
+    if ret:
+        return False
+
+    if cmd_err:
+        ret = cmd_err.decode('utf-8').rstrip()
+
+    match = re.search(r'\b\d+(\.\d+)+\b', ret)
+    if match:
+        version = match.group()
+        check_ret = is_newer(version, minimum)
+        if check_ret:
+            log.inf(prefix + ' Swift toolchain: ' + version, prefix=False, level=log.VERBOSE_DBG)
+            return check_ret
+
+    return False
+
+
+def is_newer(version, target):
+    def normalize_version(v, length=3):
+        parts = list(map(int, v.split(".")))
+        while len(parts) < length:
+            parts.append(0)
+        return tuple(parts)
+    return normalize_version(version) >= normalize_version(target)
 
 def command(flags):
     cmd = ''
@@ -94,16 +130,19 @@ def run_command(flags):
     for item in flags:
         cmd += item + ' '
 
-    #if log.VERBOSE > log.VERBOSE_INF:
-    #    cmd += '-v'
-
     log.inf(cmd, prefix=False, level=log.VERBOSE_DBG)
 
     p = subprocess.Popen(cmd, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, env=SDK_ENV)
     ret = p.wait()
     cmd_out, cmd_err = p.communicate()
+
     if ret:
         log.die(cmd_err.decode('utf-8'), prefix=False)
     
+
+    if cmd_err:
+        log.inf(cmd_err.decode('utf-8'), prefix=False, level=log.VERBOSE_DBG)
+        return cmd_err.decode('utf-8')
+
     log.inf(cmd_out.decode('utf-8'), prefix=False, level=log.VERBOSE_DBG)
     return cmd_out.decode('utf-8')

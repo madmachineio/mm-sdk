@@ -142,7 +142,7 @@ def download_project_to_partition(partition):
     image = PROJECT_PATH / '.build' / triple / 'release' / file_name
 
     if not image.is_file():
-        log.die('Cannot find ' + file_name)
+        log.die('cannot find ' + file_name)
 
     serial_name = mmp.get_board_info('usb2serial_device')
 
@@ -174,7 +174,7 @@ def download_project_to_sd():
     image = PROJECT_PATH / '.build' / triple / 'release' / file_name
 
     if not image.is_file():
-        log.die('Cannot find ' + file_name)
+        log.die('cannot find ' + file_name)
     
     serial_name = mmp.get_board_info('usb2serial_device')
 
@@ -498,13 +498,24 @@ def main():
         log.set_verbosity(log.VERBOSE_DBG)
 
     sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
+
     system = platform.system()
     if system == 'Darwin':
-        swift_path = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
+        x_path = Path('/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain')
+        if util.check_swift_version('Using default', x_path, '6.1.0'):
+            swift_path = x_path
+        else:
+            latest_path = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
+            if util.check_swift_version('Using', latest_path, '6.1.0'):
+                swift_path = latest_path
+            else:
+                log.die('cannot find a suitable Swift toolchain under ' + util.quote_string(x_path) + ' or ' + util.quote_string(latest_path))
     elif system == 'Linux':
         swift_path = sdk_path
 
     util.set_sdk_path(swift_path, sdk_path)
+    log.inf('Set Swift toolchain path to: ' + str(swift_path), prefix=False, level=log.VERBOSE_DBG)
+    log.inf('Set mm-sdk path to: ' + str(sdk_path), prefix=False, level=log.VERBOSE_DBG)
 
     PROJECT_PATH = Path('.').resolve()
     args.func(args)
