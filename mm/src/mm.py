@@ -511,7 +511,10 @@ def main():
             else:
                 log.die('cannot find a suitable Swift toolchain under ' + util.quote_string(x_path) + ' or ' + util.quote_string(latest_path))
     elif system == 'Linux':
-        swift_path = sdk_path
+        if util.check_swift_version('Using', sdk_path, '6.1.0'):
+            swift_path = sdk_path
+        else:
+            log.die('cannot find a suitable Swift toolchain under ' + util.quote_string(sdk_path))
 
     util.set_sdk_path(swift_path, sdk_path)
     log.inf('Set Swift toolchain path to: ' + str(swift_path), prefix=False, level=log.VERBOSE_DBG)
