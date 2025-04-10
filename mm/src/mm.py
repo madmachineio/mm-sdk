@@ -498,23 +498,18 @@ def main():
         log.set_verbosity(log.VERBOSE_DBG)
 
     sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
+    swift_path = sdk_path
+
+    mac_latest_path = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
 
     system = platform.system()
     if system == 'Darwin':
-        x_path = Path('/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain')
-        if util.check_swift_version('Using default', x_path, '6.1.0'):
-            swift_path = x_path
+        if util.check_swift_version('Using', mac_latest_path, '6.1.0'):
+            swift_path = mac_latest_path
         else:
-            latest_path = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
-            if util.check_swift_version('Using', latest_path, '6.1.0'):
-                swift_path = latest_path
-            else:
-                log.die('cannot find a suitable Swift toolchain under ' + util.quote_string(x_path) + ' or ' + util.quote_string(latest_path))
-    elif system == 'Linux':
-        if util.check_swift_version('Using', sdk_path, '6.1.0'):
-            swift_path = sdk_path
-        else:
-            log.die('cannot find a suitable Swift toolchain under ' + util.quote_string(sdk_path))
+            log.wrn('cannot find a suitable Swift toolchain under ' + util.quote_string(mac_latest_path))
+    elif not util.check_swift_version('Using', swift_path, '6.1.0'):
+        log.die('cannot find a suitable Swift toolchain under ' + util.quote_string(swift_path))
 
     util.set_sdk_path(swift_path, sdk_path)
     log.inf('Set Swift toolchain path to: ' + str(swift_path), prefix=False, level=log.VERBOSE_DBG)
