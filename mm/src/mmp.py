@@ -125,12 +125,12 @@ def get_float_type(wrn=False):
 
     if hard_float is None:
         if wrn:
-            log.wrn('The hard-float setting is missing in Package.mmp, defaulting to true!')
+            log.wrn('hard-float setting not found in Package.mmp, using default: true')
         hard_float = True
 
     if float_abi is None:
         if wrn:
-            log.wrn('The float-abi setting is missing in Package.mmp, defaulting to false!')
+            log.wrn('float-abi setting not found in Package.mmp, using default: false')
         float_abi = False
 
     return hard_float, float_abi

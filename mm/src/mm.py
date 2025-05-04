@@ -285,7 +285,7 @@ def add_header(args):
         log.die('Please specify the file path')
 
     if args.address is None:
-        log.wrn('Image default address 0x80000000')
+        log.wrn('Using default image address: 0x80000000')
         address = 0x80000000
     else:
         address = int(args.address, 16)
@@ -507,9 +507,9 @@ def main():
         if util.check_swift_version('Using', mac_latest_path, '6.1.0'):
             swift_path = mac_latest_path
         else:
-            log.wrn('cannot find a suitable Swift toolchain under ' + util.quote_string(mac_latest_path))
+            log.wrn('No suitable Swift toolchain found under ' + util.quote_string(mac_latest_path))
     elif not util.check_swift_version('Using', swift_path, '6.1.0'):
-        log.die('cannot find a suitable Swift toolchain under ' + util.quote_string(swift_path))
+        log.die('Cannot find a suitable Swift toolchain under ' + util.quote_string(swift_path))
 
     util.set_sdk_path(swift_path, sdk_path)
     log.inf('Set Swift toolchain path to: ' + str(swift_path), prefix=False, level=log.VERBOSE_DBG)

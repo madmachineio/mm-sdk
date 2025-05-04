@@ -84,13 +84,13 @@ def init_serial_device(device_name):
     if port_path_list is None:
         log.die('Please confirm ' + device_name + ' is correctly connected to your computer!')
     elif len(port_path_list) > 1:
-        log.wrn('Found more than one ' + device_name)
+        log.wrn('Multiple ' + device_name + ' devices found')
 
     for port_path in port_path_list:
         try:
             SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
         except IOError:
-            log.wrn('Device or resource busy! Please make sure it is not in use!')
+            log.wrn('Device is busy. Please ensure it is not in use')
 
         if SERIAL_PORT is not None and SERIAL_PORT.is_open:
             SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
@@ -102,14 +102,14 @@ def init_serial_device(device_name):
                 if ret:
                     SERIAL_PORT.reset_output_buffer()
                     SERIAL_PORT.reset_input_buffer()
-                    log.inf('Open ' + port_path + ' success')
+                    log.inf('Successfully opened ' + port_path)
                     break
                 else:
                     deinit_serial_device()
             else:
-                log.inf('Open ' + port_path + ' success')
+                log.inf('Successfully opened ' + port_path)
         else:
-            log.wrn('Open ' + port_path + ' failed!')
+            log.wrn('Failed to open ' + port_path)
     
     if SERIAL_PORT is None or not SERIAL_PORT.is_open:
         log.die('Open ' + device_name + ' failed!')
@@ -271,7 +271,7 @@ def sync(try_count = 6):
     print('', flush=True)
     SERIAL_PORT.timeout = previous_timeout
     if not result:
-        log.wrn('serial port synchronization failed!')
+        log.wrn('Failed to synchronize with serial port')
 
     return result
 
@@ -453,16 +453,16 @@ def rm(path):
     previous_timeout = SERIAL_PORT.timeout
     SERIAL_PORT.timeout = SERIAL_PORT_FS_TIMEOUT
 
-    log.inf('Deleteing ' + str(path))
+    log.inf('Deleting ' + str(path))
     payload = bytes(path, 'utf-8') + b'\x00'
     log.dbg(list(payload))
 
     send_request(FS_RM_TAG, payload)
     response = wait_response()
     if not response_verify(response, FS_RM_TAG):
-        log.wrn('Deletion of the ' + path + ' failed')
+        log.wrn('Failed to delete ' + path)
     else:
-        log.inf('Deletion of the ' + path + ' was successful')
+        log.inf('Successfully deleted ' + path)
 
     SERIAL_PORT.timeout = previous_timeout
 
@@ -831,7 +831,7 @@ def test_load_to_ram(serial_name, address):
         #deinit_serial_device()
         count += 1
 
-        log.inf('------ count = ' + str(count) + ' transfer ' + str(mbytes) + 'mb' + ' ------')
+        log.inf('------ Transferring ' + str(mbytes) + 'MB (count: ' + str(count) + ') ------')
 
 
 #log.set_verbosity(log.VERBOSE_DBG)
