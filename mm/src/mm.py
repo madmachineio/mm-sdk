@@ -65,43 +65,10 @@ def build_with_sdk(build_path, p_type, p_name):
         else:
             log.die('Board name is not specified') 
 
-# def build_project(args):
-#     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
-
-#     if not mmp_manifest.is_file():
-#         log.die('Package.mmp is required to build the project')
-
-#     mmp_content = mmp_manifest.read_text()
-#     mmp.initialize(mmp_content)
-
-#     mmp.clean(p_path=PROJECT_PATH)
-#     spm.initialize()
-#     p_name = spm.get_project_name()
-#     p_type = spm.get_project_type()
-
-#     build_path = ''
-#     triple = None
-
-#     if p_type == 'executable':
-#         triple = mmp.get_triple()
-#         build_path = PROJECT_PATH / '.build' / triple / 'release'
-
-#     mmp.create_temp_sdk_des(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
-
-#     destination = mmp.create_destination(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
-#     build_with_destination(build_path=build_path, p_type=p_type, p_name=p_name, destination=destination)
-
-#     log.inf('Done!')
-
 
 def build_project(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
-
-    if not mmp_manifest.is_file():
-        log.die('Package.mmp is required to build the project')
-
-    mmp_content = mmp_manifest.read_text()
-    mmp.initialize(mmp_content)
+    mmp.initialize(mmp_manifest)
 
     mmp.clean(p_path=PROJECT_PATH)
     spm.initialize()
@@ -121,15 +88,9 @@ def build_project(args):
     log.inf('Done!')
 
 
-def download_project_to_partition(partition):
+def download_project_to_partition(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
-
-    if not mmp_manifest.is_file():
-        log.die('Package.mmp is required to download the project')
-
-    content = mmp_manifest.read_text()
-    mmp.initialize(content)
-
+    mmp.initialize(mmp_manifest)
     board_name = mmp.get_board_name()
     if board_name is None or board_name == '':
         log.die('Board name is not specified')
@@ -137,115 +98,109 @@ def download_project_to_partition(partition):
     if board_name != 'SwiftIOMicro':
         log.die('Download to partition is not supported on SwiftIOBoard')
 
-    file_name = mmp.get_board_info('sd_image_name')
-    triple = mmp.get_triple()
-    image = PROJECT_PATH / '.build' / triple / 'release' / file_name
+    if args.serial is None:
+        log.dbg('No serial name specified, using the default serial name')
+        serial_name = mmp.get_board_info('usb2serial_device')
+    else:
+        serial_name = args.serial
 
-    if not image.is_file():
-        log.die('cannot find ' + file_name)
+    if args.file is None:
+        log.dbg('No file specified, using the default image file')
+        file_path = mmp.get_default_image_path(PROJECT_PATH)
+    else:
+        file_path = args.file
 
-    serial_name = mmp.get_board_info('usb2serial_device')
+    if not file_path.is_file():
+        log.die('cannot find ' + str(file_path))
 
     if board_name == 'SwiftIOMicro':
-        serial_download.load_to_partition(serial_name, image, partition)
+        serial_download.load_to_partition(serial_name, file_path, args.partition)
 
     log.inf('Done!')
 
 
-def download_project_to_sd():
+def download_file_to_sd(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
-
-    if not mmp_manifest.is_file():
-        log.die('Package.mmp is required to download the project')
-    
-    content = mmp_manifest.read_text()
-    mmp.initialize(content)
-
+    mmp.initialize(mmp_manifest)
     board_name = mmp.get_board_name()
-    if board_name is None:
-        log.die('Board name is not specified')
 
-    system = platform.system()
-    if board_name == 'SwiftIOBoard' and system != 'Darwin':
-        log.die(system + ' is not supported currently, please copy the image file manually')
+    if args.serial is None:
+        log.dbg('No serial name specified, using the default serial name')
+        serial_name = mmp.get_board_info('usb2serial_device')
+    else:
+        serial_name = args.serial
 
-    file_name = mmp.get_board_info('sd_image_name')
-    triple = mmp.get_triple()
-    image = PROJECT_PATH / '.build' / triple / 'release' / file_name
+    if args.file is None:
+        log.dbg('No file specified, using the default image file')
+        file_path = mmp.get_default_image_path(PROJECT_PATH)
+        file_name = file_name.name
+    else:
+        file_path = args.file
+        file_name = file_path.name
 
-    if not image.is_file():
-        log.die('cannot find ' + file_name)
-    
-    serial_name = mmp.get_board_info('usb2serial_device')
+    if not file_path.is_file():
+        log.die('cannot find ' + str(file_path))
 
     if board_name == 'SwiftIOMicro':
-        serial_download.load_to_sdcard(serial_name, image, file_name)
+        serial_download.load_to_sdcard(serial_name, file_path, file_name)
     elif board_name == 'SwiftIOBoard':
-        download.darwin_download(source=image)
+        download.darwin_download(source=file_path)
 
     log.inf('Done!')
 
+def download_file_to_ram(args):
+    if args.file is None or args.serial is None:
+        mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+        mmp.initialize(mmp_manifest)
+
+    if args.serial is None:
+        log.dbg('No serial name specified, using the default serial name')
+        serial_name = mmp.get_board_info('usb2serial_device')
+    else:
+        serial_name = args.serial
+
+    if args.file is None:
+        log.dbg('No file specified, using the default image file')
+        file_path = mmp.get_default_image_path(PROJECT_PATH)
+    else:
+        file_path = args.file
+
+    if not file_path.is_file():
+        log.die('cannot find ' + str(file_path))
+
+    if args.address is None:
+        log.die('Please specify the target RAM address')
+
+    address = int(args.address, 16)
+    log.inf('Download to RAM address: ' + str(address))
+
+    serial_download.load_to_ram(serial_name, file_path, address)
 
 def download_to_sd_with_target_name(serial_name, image, file_name):
         serial_download.load_to_sdcard(serial_name, image, file_name)
 
 
-def download_to_sd(args):
-    if args.file is None:
-        log.die('Please specify the file path')
-
-    f = args.file
-    if not f.is_file():
-        log.die('open file ' + str(f) + ' failed!')
-
-    path = Path(f)
-    if path.suffix == '':
-        file_name = path.stem
-    else:
-        file_name = path.name
-
-    download_to_sd_with_target_name('wch', f, file_name)
-
-def download_to_partition(args):
-    if args.file is None or args.partition is None:
-        log.die('Please specify the file path and target partition name')
-    
-    f = args.file
-    if not f.is_file():
-        log.die('open file ' + str(f) + ' failed!')
-
-    serial_download.load_to_partition('wch', f, args.partition)
-
-def download_to_ram(args):
-    if args.file is None or args.address is None:
-        log.die('Please specify the file path and target RAM address')
-
-    address = int(args.address, 16)
-    log.inf(address)
-
-    f = args.file
-    if not f.is_file():
-        log.die('open file ' + str(f) + ' failed!')
-    
-    serial_download.load_to_ram('wch', f, address)
-
-
 def download_img(args):
-    if args.type == 'sd':
-        if args.file is None:
-            download_project_to_sd()
-        else:
-            download_to_sd(args)
-    elif args.type == 'partition':
-        if args.file is None:
-            download_project_to_partition(args.partition)
-        else:
-            download_to_partition(args)
+    if args.type == 'partition':
+        download_project_to_partition(args.partition)
+    elif args.type == 'sd':
+        download_file_to_sd(args)
     elif args.type == 'ram':
-        download_to_ram(args)
-
+        download_file_to_ram(args)
 
 def copy_resources(args):
+    mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+    mmp.initialize(mmp_manifest)
+
+    board_name = mmp.get_board_name()
+    if board_name is None or board_name == '':
+        log.die('Board name is not specified')
+
+    if board_name != 'SwiftIOMicro':
+        log.die('Copy to partition is not supported on SwiftIOBoard')
+
+    serial_name = mmp.get_board_info('usb2serial_device')
+
     source = Path(args.source)
     destination = Path(args.destination)
     delete_first = True
@@ -259,7 +214,9 @@ def copy_resources(args):
     if not source.is_dir():
         log.die(str(args.source) + ' directory not exist')
 
+    log.dbg('Source: ' + str(args.source))
     log.dbg('Destination: ' + str(args.destination))
+    log.dbg('Device: ' + str(serial_name))
 
     files = []
     for item in list(source.glob('**/*')):
@@ -274,7 +231,7 @@ def copy_resources(args):
     else:
         delete_first = False
 
-    serial_download.copy_to_filesystem('wch', delete_first, source, destination, files)
+    serial_download.copy_to_filesystem(serial_name, delete_first, source, destination, files)
 
     for file in files:
         log.dbg(str(file))
