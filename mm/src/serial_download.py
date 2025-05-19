@@ -64,7 +64,7 @@ def get_uint64_big_bytes(number):
     return number.to_bytes(8, byteorder='big')
 
 
-def find_serial_device(device_name):
+def find_serial_device_by_name(device_name: str):
     port_list = list(serial.tools.list_ports.grep(device_name))
     port_path_list = list()
     for port in port_list:
@@ -75,11 +75,20 @@ def find_serial_device(device_name):
 
     return port_path_list
 
+def find_serial_device_by_path(device_name: Path):
+    port_path_list = list(str(device_name))
+    if len(port_path_list) == 0:
+        port_path_list = None
+
+    return port_path_list
 
 def init_serial_device(device_name):
     global SERIAL_PORT
 
-    port_path_list = find_serial_device(device_name)
+    if isinstance(device_name, Path):
+        port_path_list = find_serial_device_by_path(device_name)
+    else:
+        port_path_list = find_serial_device_by_name(device_name)
 
     if port_path_list is None:
         log.die('Please confirm ' + device_name + ' is correctly connected to your computer!')
@@ -375,11 +384,11 @@ def partion_set_boot(name):
 
 
 
-def sdcard_begin(image_length, image_path):
+def sdcard_begin(image_length, image_name):
     image_length = get_uint32_big_bytes(image_length)
-    image_path = bytes(image_path, 'utf-8') + b'\x00'
+    image_name = bytes(image_name, 'utf-8') + b'\x00'
 
-    payload = image_length + image_path
+    payload = image_length + image_name
 
     send_request(FS_BEGIN_TAG, payload)
     response = wait_response()
@@ -498,8 +507,8 @@ def cp(src, dst):
 
 
 
-def send_file2mem(file_name, addr, bar=False):
-    f = Path(file_name)
+def send_file2mem(file_path, addr, bar=False):
+    f = Path(file_path)
 
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
@@ -525,7 +534,7 @@ def send_file2mem(file_name, addr, bar=False):
     mem_end(file_crc)
 
 
-def send_file2flash(file_name, addr, run_addr):
+def send_file2flash(file_name, addr):
     f = Path(file_name)
 
     if not f.is_file():
@@ -546,12 +555,11 @@ def send_file2flash(file_name, addr, run_addr):
         process_bar.update(len(payload))
 
     process_bar.close()
-    flash_end(file_crc, run_addr)
+    flash_end(file_crc)
 
 
-def send_file2sdcard(file_name, target_name):
-    f = Path(file_name)
-
+def send_file2sdcard(file_path, file_rename):
+    f = Path(file_path)
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
 
@@ -560,7 +568,7 @@ def send_file2sdcard(file_name, target_name):
     file_crc = crc32(file_bytes)
     process_bar = tqdm(total=file_length, unit='B', unit_scale=True)
 
-    sdcard_begin(file_length, target_name)
+    sdcard_begin(file_length, file_rename)
 
     offset = 0
     while offset < file_length:
@@ -573,9 +581,8 @@ def send_file2sdcard(file_name, target_name):
     sdcard_end(file_crc)
 
 
-def send_file2partion(file_name, partition_name):
-    f = Path(file_name)
-
+def send_file2partion(file_path, partition_name):
+    f = Path(file_path)
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
 
@@ -691,7 +698,7 @@ def test_list_serial_port():
         log.inf(port.description)
 
 
-def load_to_ram(serial_name, image, address):
+def load_to_ram(serial_name, file_path, address):
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -702,13 +709,13 @@ def load_to_ram(serial_name, image, address):
     if sync() == False:
         log.die("Sync failed!")
 
-    send_file2mem(image, address)
+    send_file2mem(file_path, address)
     execute(address)
 
     deinit_serial_device()
 
 
-def load_to_partition(serial_name, image, partition):
+def load_to_partition(serial_name, file_path, partition):
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -730,7 +737,7 @@ def load_to_partition(serial_name, image, partition):
     if sync() == False:
         log.die("Sync failed!")
 
-    send_file2partion(image, partition)
+    send_file2partion(file_path, partition)
 
     partion_set_boot(partition)
 
@@ -739,7 +746,7 @@ def load_to_partition(serial_name, image, partition):
     deinit_serial_device()
 
 
-def load_to_sdcard(serial_name, image, target_name):
+def load_to_sdcard(serial_name, file_path, file_rename):
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -761,7 +768,7 @@ def load_to_sdcard(serial_name, image, target_name):
     if sync() == False:
         log.die("Sync failed!")
 
-    send_file2sdcard(image, target_name)
+    send_file2sdcard(file_path, file_rename)
     reboot()
 
     deinit_serial_device()
