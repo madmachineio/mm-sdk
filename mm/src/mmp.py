@@ -18,13 +18,13 @@ SUPPORTED_BOARDS = [
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
                 'serial_number': '012345671FC90093',
-                'sd_image_name': 'swiftio.bin',
+                'image_name': 'swiftio.bin',
                 'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
 SWIFTIO_MICRO = {'vid': '0x1fc9',
                 'pid': '0x0095',
                 'serial_number': '012345671FC90095',
-                'sd_image_name': 'micro.img',
+                'image_name': 'micro.img',
                 'usb2serial_device': '/dev/ttyACM0' if platform.system() == 'Linux' else 'wch'}
 
 
@@ -60,7 +60,7 @@ version = 1
 
 TOML_CONTENT = None
 
-def initialize(content):
+def initialize(content: str):
     global TOML_CONTENT
 
     try:
@@ -68,6 +68,18 @@ def initialize(content):
     except:
         log.die('decoding Package.mmp failed!')
 
+def initialize(manifest: Path):
+    global TOML_CONTENT
+
+    if not manifest.is_file():
+        log.die('Package.mmp not found!')
+
+    content = manifest.read_text()
+
+    try:
+        TOML_CONTENT = toml.loads(content)
+    except:
+        log.die('decoding Package.mmp failed!')
 
 def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='true', float_abi='false'):    
     if p_type == 'library':
@@ -115,6 +127,13 @@ def get_triple():
 
     return triple
 
+def get_default_image_path(project_path):
+    triple = get_triple()
+    file_name = get_board_info('image_name')
+
+    file_path = project_path / '.build' / triple / 'release' / file_name
+    
+    return file_path
 
 def get_float_type(wrn=False):
     hard_float = TOML_CONTENT.get('hard-float')
