@@ -26,7 +26,6 @@ SWIFTIO_MICRO = {'vid': '0x1fc9',
                 'serial_number': '012345671FC90095',
                 'image_name': 'micro.img',
                 'usb2serial_device': '/dev/ttyACM0' if platform.system() == 'Linux' else 'wch'}
-                #'usb2serial_device': '/dev/serial/by-id/usb-1a86_USB_Single_Serial_56CC057901-if00' if platform.system() == 'Linux' else 'wch'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
