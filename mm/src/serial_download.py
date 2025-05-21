@@ -75,25 +75,23 @@ def find_serial_device_by_name(device_name: str):
 
     return port_path_list
 
-def find_serial_device_by_path(device_name: Path):
-    port_path_list = list(str(device_name))
-    if len(port_path_list) == 0:
-        port_path_list = None
 
-    return port_path_list
-
-def init_serial_device(device_name):
+def init_serial_device(device):
     global SERIAL_PORT
 
-    if isinstance(device_name, Path):
-        port_path_list = find_serial_device_by_path(device_name)
+    if isinstance(device, Path):
+        if not device.exists():
+            log.die('Serial device ' + str(device) + ' not exists!')
+
+        port_path_list = list()
+        port_path_list.append(str(device))
     else:
-        port_path_list = find_serial_device_by_name(device_name)
+        port_path_list = find_serial_device_by_name(device)
 
     if port_path_list is None:
-        log.die('Please confirm ' + device_name + ' is correctly connected to your computer!')
+        log.die('Please confirm ' + str(device) + ' is correctly connected to your computer!')
     elif len(port_path_list) > 1:
-        log.wrn('Multiple ' + device_name + ' devices found')
+        log.wrn('Multiple ' + str(device) + ' devices found')
 
     for port_path in port_path_list:
         try:
@@ -121,8 +119,7 @@ def init_serial_device(device_name):
             log.wrn('Failed to open ' + port_path)
     
     if SERIAL_PORT is None or not SERIAL_PORT.is_open:
-        log.die('Open ' + device_name + ' failed!')
-    
+        log.die('Open ' + str(device) + ' failed!')
 
 
 def deinit_serial_device():
@@ -776,7 +773,24 @@ def load_to_sdcard(serial_name, file_path, file_rename):
 
 
 
-def copy_to_filesystem(serial_name, delete, source, destination, files):
+def copy_to_filesystem(serial_name, delete, source, destination):
+    source = source.resolve()
+
+    files = []
+    if source.is_dir():
+        file_paths = sorted(source.glob('**/*'))
+        for item in file_paths:
+            if item.is_file():
+                files.append(item.relative_to(source))
+    elif source.is_file():
+        files.append(source)
+
+    if len(files) == 0:
+        log.die(str(source) + ' is empty')
+
+    for file in files:
+        log.dbg(str(file))
+
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -795,12 +809,20 @@ def copy_to_filesystem(serial_name, delete, source, destination, files):
     if sync() == False:
         log.die("Sync failed!")
 
-    if delete:
-        rm(str(destination / source))
+    if source.is_dir() and delete:
+        des = (destination / source.name).resolve()
+        log.dbg('Deleting ' + str(des))
+        rm(str(des))
 
-    for file in files:
-        des = destination / file
-        cp(str(file), str(des))
+    if source.is_dir():
+        for file in files:
+            file_path = (source / file).resolve()
+            des = (destination / source.name / file).resolve()
+            cp(str(file_path), str(des))
+    else: # source is file
+        des = (destination / source.name).resolve()
+        cp(str(source), str(des))
+
 
     reboot()
     deinit_serial_device()

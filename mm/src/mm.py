@@ -95,6 +95,9 @@ def download_file_to_partition(args):
     log.inf('Done!')
 
 
+# Only for SwiftIOBoard
+# Not recommended to use this function
+# Please use 'mm copy' command instead
 def download_file_to_sd(args):
     mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
     mmp.initialize(mmp_manifest)
@@ -102,10 +105,11 @@ def download_file_to_sd(args):
 
     file_new_name = str(args.file.name)
 
-    if board_name == 'SwiftIOMicro':
+    if board_name != 'SwiftIOBoard':
+        log.wrn('Deprecated command, please use "mm copy" instead')
         serial_download.load_to_sdcard(args.serial, args.file, file_new_name)
-    elif board_name == 'SwiftIOBoard':
-        download.darwin_download(source=file_path)
+    else:
+        download.darwin_download(source=args.file)
 
     log.inf('Done!')
 
@@ -124,6 +128,9 @@ def download_file(args):
     if args.file is None or args.serial is None:
         mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
         mmp.initialize(mmp_manifest)
+        board_name = mmp.get_board_name()
+        if board_name == 'SwiftIOBoard' and args.type == 'partition':
+            log.die('Download to partition is not supported on SwiftIOBoard')
 
     if args.file is None:
         log.dbg('No file specified, using the default image file')
@@ -143,62 +150,46 @@ def download_file(args):
     log.dbg('Serial: ' + str(args.serial))
 
     if args.type == 'partition':
-        board_name = mmp.get_board_name()
-        if board_name == 'SwiftIOBoard':
-            log.die('Download to partition is not supported on SwiftIOBoard')
         download_file_to_partition(args)
-    elif args.type == 'sd':
-        download_file_to_sd(args)
     elif args.type == 'ram':
         download_file_to_ram(args)
+    elif args.type == 'sd':
+        download_file_to_sd(args)
 
 def copy_resources(args):
-    mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
-    mmp.initialize(mmp_manifest)
+    if args.serial is None:
+        mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
+        mmp.initialize(mmp_manifest)
+        board_name = mmp.get_board_name()
+        if board_name == 'SwiftIOBoard':
+            log.die('copy command is not supported on SwiftIOBoard')
+        args.serial = mmp.get_board_info('usb2serial_device')
+        log.dbg('No serial name specified, using the default serial name: ' + str(args.serial))
+    else:
+        args.serial = Path(args.serial)
 
-    board_name = mmp.get_board_name()
-    if board_name is None or board_name == '':
-        log.die('Board name is not specified')
+    source = Path(args.source).resolve()
+    if not source.exists():
+        log.die(str(args.source) + ' not exists')
 
-    if board_name != 'SwiftIOMicro':
-        log.die('Copy to partition is not supported on SwiftIOBoard')
-
-    serial_name = mmp.get_board_info('usb2serial_device')
-
-    source = Path(args.source)
     destination = Path(args.destination)
-    delete_first = True
-
-    if source.is_absolute():
-        log.die('Absolute resource path is not supported at this time')
-
     if not destination.is_absolute():
-        log.die('The destination must be an absolute path')
-
-    if not source.is_dir():
-        log.die(str(args.source) + ' directory not exist')
-
-    log.dbg('Source: ' + str(args.source))
-    log.dbg('Destination: ' + str(args.destination))
-    log.dbg('Device: ' + str(serial_name))
-
-    files = []
-    for item in list(source.glob('**/*')):
-        if item.is_file():
-            files.append(item)
-
-    if len(files) == 0:
-        log.die(str(args.source) + ' is empty')
+        log.die('The destination is supposed be an absolute path')
 
     if args.mode == 'sync':
         delete_first = True
     else:
         delete_first = False
 
-    serial_download.copy_to_filesystem(serial_name, delete_first, source, destination, files)
+    # if source.is_dir() and source.is_absolute():
+    #     log.die('Absolute directory path is not supported')
 
-    for file in files:
-        log.dbg(str(file))
+    log.dbg('Source: ' + str(args.source))
+    log.dbg('Destination: ' + str(args.destination))
+    log.dbg('Device: ' + str(args.serial))
+    log.dbg('Mode: ' + str(args.mode))
+
+    serial_download.copy_to_filesystem(args.serial, delete_first, source, destination)
 
 
 def add_header(args):
@@ -324,6 +315,7 @@ def clean_project(args):
     if args.deep:
         spm.clean()
 
+
 def get_info(args):
     if args.info == 'usb':
         mmp_manifest = Path(PROJECT_PATH / 'Package.mmp')
@@ -348,6 +340,7 @@ def get_info(args):
         p_name = spm.get_project_name()
         log.inf(p_name)
 
+
 def main():
     global PROJECT_PATH
 
@@ -358,8 +351,8 @@ def main():
 
     init_parser = subparsers.add_parser('init', help = 'Initialize a new project')
     init_parser.add_argument('-t', '--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type: The default type is executable')
-    init_parser.add_argument('--name', type = str, help = 'Initialize a new project with a specified name. If no name is provided, the project name will default to the name of the current directory')
     init_parser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOMicro'], help = 'Pass this parameter to generate the MadMachine project file')
+    init_parser.add_argument('--name', type = str, help = 'Initialize a new project with a specified name. If no name is provided, the project name will default to the name of the current directory')
     init_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     init_parser.set_defaults(func = init_project)
 
@@ -367,27 +360,20 @@ def main():
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     build_parser.set_defaults(func = build_project)
 
-    header_parser = subparsers.add_parser('add_header', help = 'Add a header to the binary file')
-    header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
-    header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Path to the binary file")
-    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
-    header_parser.add_argument('--verify', type = str, choices =['crc32', 'sha256'], default = 'crc32', help = 'Type of verification')
-    header_parser.set_defaults(func = add_header)
-
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s RAM, Flash, or SD card')
-    download_parser.add_argument('-t', '--type', type = str, choices = ['ram', 'partition', 'sd'], default = 'partition', help = "Download type: The default is Flash partition")
-    download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition, the default is 'user'")
-    download_parser.add_argument('--serial', type = Path, default = None, help = "Path to the serial device")
-    download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
     download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Path to the image file")
+    download_parser.add_argument('-t', '--type', type = str, choices = ['partition', 'ram', 'sd'], default = 'partition', help = "Download type: The default is Flash partition")
+    download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition, the default is 'user'")
+    download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
+    download_parser.add_argument('--serial', type = Path, default = None, help = "Path to the serial device")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     download_parser.set_defaults(func = download_file)
 
     copy_parser = subparsers.add_parser('copy', help = 'Copy the resources to the Flash or SD card filesystem')
     copy_parser.add_argument('-m', '--mode', type = str, choices = ['sync', 'merge'], default = 'merge', help = "Copy the resources to the destination, the default mode is merge")
-    copy_parser.add_argument('--serial', type = Path, default = None, help = "Path to the serial device")
     copy_parser.add_argument('-s', '--source', type = Path, default = 'Resources', help = "Source path: The default path is 'Resources' within the project")
     copy_parser.add_argument('-d', '--destination', type = Path, default = '/SD:', help = "Destination path: The default path is '/SD:'")
+    copy_parser.add_argument('--serial', type = Path, default = None, help = "Path to the serial device")
     copy_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     copy_parser.set_defaults(func = copy_resources)
 
@@ -404,6 +390,13 @@ def main():
     ci_build_parser = subparsers.add_parser('ci-build', help = 'CI Build')
     ci_build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     ci_build_parser.set_defaults(func = ci_build)
+
+    header_parser = subparsers.add_parser('add_header', help = 'Add a header to the binary file')
+    header_parser.add_argument('-f', '--file', type = Path, default = None, help = "Path to the binary file")
+    header_parser.add_argument('-a', '--address', type = str, default = None, help = "Target load address")
+    header_parser.add_argument('--verify', type = str, choices =['crc32', 'sha256'], default = 'sha256', help = 'Type of verification')
+    header_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
+    header_parser.set_defaults(func = add_header)
 
     host_test_parser = subparsers.add_parser('host-test', help = 'Test a project on the host using the SwiftIO mock')
     host_test_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")

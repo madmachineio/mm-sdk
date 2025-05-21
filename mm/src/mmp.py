@@ -129,16 +129,8 @@ def get_triple():
     return triple
 
 def get_default_image_path(project_path):
-    board_name = get_board_name()
-    if board_name is None:
-        log.die('Board name is not specified')
-
-    system = platform.system()
-    if board_name == 'SwiftIOBoard' and system != 'Darwin':
-        log.die(system + ' is not supported currently, please copy the image file manually')
-
-    file_name = get_board_info('image_name')
     triple = get_triple()
+    file_name = get_board_info('image_name')
 
     file_path = project_path / '.build' / triple / 'release' / file_name
     
