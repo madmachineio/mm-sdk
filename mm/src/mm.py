@@ -1,5 +1,5 @@
 import os, sys, platform, argparse, shutil
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import log, util, spm, mmp, download, version
 import serial_download, image
 import multiprocessing
@@ -172,9 +172,16 @@ def copy_resources(args):
     if not source.exists():
         log.die(str(args.source) + ' not exists')
 
-    destination = Path(args.destination)
-    if not destination.is_absolute():
-        log.die('The destination is supposed be an absolute path')
+    # Path works differently on Windows and Unix-like systems
+    if platform.system() == 'Windows':
+        if not str(args.destination).startswith('\\'):
+            log.die('The destination is supposed be an absolute path, now it is: ' + str(destination))
+        else:
+            args.destination = str(args.destination).replace('\\', '/')
+    elif not str(args.destination).startswith('/'):
+        log.die('The destination is supposed be an absolute path, now it is: ' + str(destination))
+
+    destination = PurePosixPath(args.destination)
 
     if args.mode == 'sync':
         delete_first = True
@@ -415,27 +422,13 @@ def main():
 
     sdk_path = Path(os.path.realpath(sys.argv[0])) / '../../..'
     sdk_path = sdk_path.resolve()
-    # swift_path = sdk_path
 
-    # swift_path_mac_default = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
-
-    # system = platform.system()
-    # if system == 'Darwin':
-    #     if util.check_swift_version('Using', swift_path_mac_default, '6.1.0'):
-    #         swift_path = swift_path_mac_default
-    #     else:
-    #         log.wrn('No suitable Swift toolchain found under ' + util.quote_string(swift_path_mac_default))
-    # elif not util.check_swift_version('Using', swift_path, '6.1.0'):
-    #     log.die('Cannot find a suitable Swift toolchain under ' + util.quote_string(swift_path))
-
-    # util.set_sdk_path(swift_path, sdk_path)
     util.init_sdk_and_swift_path(sdk_path)
 
     log.inf('Set mm-sdk path to: ' + str(util.SDK_PATH), level=log.VERBOSE_DBG)
     log.inf('Set Swift toolchain path to: ' + str(util.SWIFT_PATH), level=log.VERBOSE_DBG)
 
     PROJECT_PATH = Path('.').resolve()
-    log.die('die die die')
     args.func(args)
 
 if __name__ == "__main__":

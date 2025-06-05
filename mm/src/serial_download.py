@@ -1,7 +1,7 @@
 from pickletools import read_stringnl_noescape
 import serial, serial.tools.list_ports
 from time import sleep
-from pathlib import Path
+from pathlib import Path, PosixPath
 from tqdm import tqdm
 from zlib import crc32
 import log, util
@@ -810,17 +810,17 @@ def copy_to_filesystem(serial_name, delete, source, destination):
         log.die("Sync failed!")
 
     if source.is_dir() and delete:
-        des = (destination / source.name).resolve()
+        des = destination / source.name
         log.dbg('Deleting ' + str(des))
         rm(str(des))
 
     if source.is_dir():
         for file in files:
             file_path = (source / file).resolve()
-            des = (destination / source.name / file).resolve()
+            des = destination / source.name / file
             cp(str(file_path), str(des))
     else: # source is file
-        des = (destination / source.name).resolve()
+        des = destination / source.name
         cp(str(source), str(des))
 
 
