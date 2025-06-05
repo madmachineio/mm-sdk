@@ -413,25 +413,29 @@ def main():
     if args.verbose:
         log.set_verbosity(log.VERBOSE_DBG)
 
-    sdk_path = Path(os.path.realpath(sys.argv[0])).parent.parent.parent
-    swift_path = sdk_path
+    sdk_path = Path(os.path.realpath(sys.argv[0])) / '../../..'
+    sdk_path = sdk_path.resolve()
+    # swift_path = sdk_path
 
-    mac_latest_path = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
+    # swift_path_mac_default = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
 
-    system = platform.system()
-    if system == 'Darwin':
-        if util.check_swift_version('Using', mac_latest_path, '6.1.0'):
-            swift_path = mac_latest_path
-        else:
-            log.wrn('No suitable Swift toolchain found under ' + util.quote_string(mac_latest_path))
-    elif not util.check_swift_version('Using', swift_path, '6.1.0'):
-        log.die('Cannot find a suitable Swift toolchain under ' + util.quote_string(swift_path))
+    # system = platform.system()
+    # if system == 'Darwin':
+    #     if util.check_swift_version('Using', swift_path_mac_default, '6.1.0'):
+    #         swift_path = swift_path_mac_default
+    #     else:
+    #         log.wrn('No suitable Swift toolchain found under ' + util.quote_string(swift_path_mac_default))
+    # elif not util.check_swift_version('Using', swift_path, '6.1.0'):
+    #     log.die('Cannot find a suitable Swift toolchain under ' + util.quote_string(swift_path))
 
-    util.set_sdk_path(swift_path, sdk_path)
-    log.inf('Set Swift toolchain path to: ' + str(swift_path), prefix=False, level=log.VERBOSE_DBG)
-    log.inf('Set mm-sdk path to: ' + str(sdk_path), prefix=False, level=log.VERBOSE_DBG)
+    # util.set_sdk_path(swift_path, sdk_path)
+    util.init_sdk_and_swift_path(sdk_path)
+
+    log.inf('Set mm-sdk path to: ' + str(util.SDK_PATH), level=log.VERBOSE_DBG)
+    log.inf('Set Swift toolchain path to: ' + str(util.SWIFT_PATH), level=log.VERBOSE_DBG)
 
     PROJECT_PATH = Path('.').resolve()
+    log.die('die die die')
     args.func(args)
 
 if __name__ == "__main__":

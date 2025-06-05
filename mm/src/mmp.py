@@ -741,7 +741,7 @@ def create_binary(build_path, name):
     bin_path = build_path / (name + '.bin')
 
     flags = [
-        util.get_tool('objcopy'),
+        util.get_tool_string('objcopy'),
         '-S',
         '-Obinary',
         '--gap-fill',
