@@ -1,6 +1,4 @@
-import platform
 import toml, json
-from zlib import crc32
 from pathlib import Path
 import util, log, version
 
@@ -25,7 +23,8 @@ SWIFTIO_MICRO = {'vid': '0x1fc9',
                 'pid': '0x0095',
                 'serial_number': '012345671FC90095',
                 'image_name': 'micro.img',
-                'usb2serial_device': '/dev/ttyACM0' if platform.system() == 'Linux' else 'wch'}
+                #'usb2serial_device': '/dev/ttyACM0' if platform.system() == 'Linux' else 'wch'}
+                'usb2serial_device': '1A86:55D3'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format

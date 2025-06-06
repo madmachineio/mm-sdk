@@ -143,8 +143,6 @@ def download_file(args):
     if args.serial is None:
         log.dbg('No serial name specified, using the default serial name')
         args.serial = mmp.get_board_info('usb2serial_device')
-    else:
-        args.serial = Path(args.serial)
 
     log.dbg('File: ' + str(args.file))
     log.dbg('Serial: ' + str(args.serial))
@@ -164,9 +162,7 @@ def copy_resources(args):
         if board_name == 'SwiftIOBoard':
             log.die('copy command is not supported on SwiftIOBoard')
         args.serial = mmp.get_board_info('usb2serial_device')
-        log.dbg('No serial name specified, using the default serial name: ' + str(args.serial))
-    else:
-        args.serial = Path(args.serial)
+        log.dbg('No serial name specified, using the default serial info: ' + args.serial)
 
     source = Path(args.source).resolve()
     if not source.exists():
@@ -372,7 +368,7 @@ def main():
     download_parser.add_argument('-t', '--type', type = str, choices = ['partition', 'ram', 'sd'], default = 'partition', help = "Download type: The default is Flash partition")
     download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition, the default is 'user'")
     download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
-    download_parser.add_argument('--serial', type = Path, default = None, help = "Path to the serial device")
+    download_parser.add_argument('--serial', type = str, default = None, help = "Name, description or hwid of the serial device")
     download_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     download_parser.set_defaults(func = download_file)
 
@@ -380,7 +376,7 @@ def main():
     copy_parser.add_argument('-m', '--mode', type = str, choices = ['sync', 'merge'], default = 'merge', help = "Copy the resources to the destination, the default mode is merge")
     copy_parser.add_argument('-s', '--source', type = Path, default = 'Resources', help = "Source path: The default path is 'Resources' within the project")
     copy_parser.add_argument('-d', '--destination', type = Path, default = '/SD:', help = "Destination path: The default path is '/SD:'")
-    copy_parser.add_argument('--serial', type = Path, default = None, help = "Path to the serial device")
+    copy_parser.add_argument('--serial', type = str, default = None, help = "Name, description or hwid of the serial device")
     copy_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     copy_parser.set_defaults(func = copy_resources)
 

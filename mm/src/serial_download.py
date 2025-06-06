@@ -63,9 +63,25 @@ def get_uint64_big_bytes(number):
     
     return number.to_bytes(8, byteorder='big')
 
+def list_all_the_serial_ports():
+    port_list = serial.tools.list_ports.comports()
+    for port in port_list:
+        log.inf(' ')
+        log.inf('device: ' + port.device)
+        log.inf('name: ' + port.name)
+        log.inf('description: ' + port.description)
+        log.inf('hwid: ' + port.hwid)
+        log.inf('vid: ' + str(port.vid))
+        log.inf('pid: ' + str(port.pid))
+        log.inf('serial_number: ' + str(port.serial_number))
+        log.inf('location: ' + str(port.location))
+        log.inf('manufacturer: ' + str(port.manufacturer))
+        log.inf('product: ' + str(port.product))
+        log.inf('interface: ' + str(port.interface))
 
-def find_serial_device_by_name(device_name: str):
-    port_list = list(serial.tools.list_ports.grep(device_name))
+# only support name, description, hwid
+def find_serial_device(device: str):
+    port_list = list(serial.tools.list_ports.grep(device))
     port_path_list = list()
     for port in port_list:
         port_path_list.append(port.device)
@@ -79,15 +95,7 @@ def find_serial_device_by_name(device_name: str):
 def init_serial_device(device):
     global SERIAL_PORT
 
-    if isinstance(device, Path):
-        if not device.exists():
-            log.die('Serial device ' + str(device) + ' not exists!')
-
-        port_path_list = list()
-        port_path_list.append(str(device))
-    else:
-        port_path_list = find_serial_device_by_name(device)
-
+    port_path_list = find_serial_device(device)
     if port_path_list is None:
         log.die('Please confirm ' + str(device) + ' is correctly connected to your computer!')
     elif len(port_path_list) > 1:
