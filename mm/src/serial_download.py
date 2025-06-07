@@ -105,7 +105,7 @@ def init_serial_device(device):
         try:
             SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
         except IOError:
-            log.wrn('Device is busy. Please ensure it is not in use')
+            log.wrn('Cannot connect to serial port, please ensure the device is not in use and you have the right permission')
 
         if SERIAL_PORT is not None and SERIAL_PORT.is_open:
             SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT

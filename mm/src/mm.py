@@ -353,6 +353,7 @@ def main():
     subparsers = parser.add_subparsers()
 
     init_parser = subparsers.add_parser('init', help = 'Initialize a new project')
+    init_parser.add_argument('--toolchain', type = Path, default = None, help = 'Set a specific Swift toolchain path, if not set, the default toolchain will be used')
     init_parser.add_argument('-t', '--type', type = str, choices = ['executable', 'library'], default = 'executable', help = 'Project type: The default type is executable')
     init_parser.add_argument('-b', '--board', type = str, choices =['SwiftIOBoard', 'SwiftIOMicro'], help = 'Pass this parameter to generate the MadMachine project file')
     init_parser.add_argument('--name', type = str, help = 'Initialize a new project with a specified name. If no name is provided, the project name will default to the name of the current directory')
@@ -360,11 +361,12 @@ def main():
     init_parser.set_defaults(func = init_project)
 
     build_parser = subparsers.add_parser('build', help = 'Build a project')
+    build_parser.add_argument('--toolchain', type = Path, default = None, help = 'Set a specific Swift toolchain path, if not set, the default toolchain will be used')
     build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     build_parser.set_defaults(func = build_project)
 
     download_parser = subparsers.add_parser('download', help = 'Download the target executable to the board\'s RAM, Flash, or SD card')
-    download_parser.add_argument('-f', '--file', type = Path, default = None, help = "Path to the image file")
+    download_parser.add_argument('-f', '--file', type = Path, default = None, help = 'Path to the image file')
     download_parser.add_argument('-t', '--type', type = str, choices = ['partition', 'ram', 'sd'], default = 'partition', help = "Download type: The default is Flash partition")
     download_parser.add_argument('-p', '--partition', type = str, default = 'user', help = "Target flash partition, the default is 'user'")
     download_parser.add_argument('-a', '--address', type = str, default = '0x80000000', help = "Target RAM address")
@@ -375,7 +377,7 @@ def main():
     copy_parser = subparsers.add_parser('copy', help = 'Copy the resources to the Flash or SD card filesystem')
     copy_parser.add_argument('-m', '--mode', type = str, choices = ['sync', 'merge'], default = 'merge', help = "Copy the resources to the destination, the default mode is merge")
     copy_parser.add_argument('-s', '--source', type = Path, default = 'Resources', help = "Source path: The default path is 'Resources' within the project")
-    copy_parser.add_argument('-d', '--destination', type = Path, default = '/SD:', help = "Destination path: The default path is '/SD:'")
+    copy_parser.add_argument('-d', '--destination', type = PurePosixPath, default = '/SD:', help = "Destination path: The default path is '/SD:'")
     copy_parser.add_argument('--serial', type = str, default = None, help = "Name, description or hwid of the serial device")
     copy_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     copy_parser.set_defaults(func = copy_resources)
@@ -405,26 +407,35 @@ def main():
     host_test_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     host_test_parser.set_defaults(func = host_test)
 
+    PROJECT_PATH = Path('.').resolve()
+    sdk_path = Path(os.path.realpath(sys.argv[0])) / '../../..'
+    sdk_path = sdk_path.resolve()
+
     args = parser.parse_args()
     if vars(args).get('version'):
         print(version.__VERSION__)
         sys.exit(0)
 
-    if vars(args).get('func') is None:
-        log.die('subcommand is required, use \'mm --help\' to get more information')
-
     if args.verbose:
         log.set_verbosity(log.VERBOSE_DBG)
 
-    sdk_path = Path(os.path.realpath(sys.argv[0])) / '../../..'
-    sdk_path = sdk_path.resolve()
+    function = vars(args).get('func')
+    if function is None:
+        log.die('subcommand is required, use \'mm --help\' to get more information')
 
-    util.init_sdk_and_swift_path(sdk_path)
+    toolchain_path = None
+    if vars(args).get('toolchain') is not None:
+        toolchain_path = vars(args).get('toolchain')
 
+    util.init_sdk_and_swift_path(sdk_path, toolchain_path)
     log.inf('Set mm-sdk path to: ' + str(util.SDK_PATH), level=log.VERBOSE_DBG)
-    log.inf('Set Swift toolchain path to: ' + str(util.SWIFT_PATH), level=log.VERBOSE_DBG)
 
-    PROJECT_PATH = Path('.').resolve()
+    if function == init_project or function == build_project:
+        if util.SWIFT_PATH is None:
+            log.die('Cannot find the default Swift toolchain path')
+        else:
+            log.inf('Set Swift toolchain path to: ' + str(util.SWIFT_PATH), level=log.VERBOSE_DBG)
+
     args.func(args)
 
 if __name__ == "__main__":
