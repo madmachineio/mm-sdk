@@ -1,7 +1,7 @@
 from pickletools import read_stringnl_noescape
 import serial, serial.tools.list_ports
 from time import sleep
-from pathlib import Path
+from pathlib import Path, PosixPath
 from tqdm import tqdm
 from zlib import crc32
 import log, util
@@ -63,9 +63,25 @@ def get_uint64_big_bytes(number):
     
     return number.to_bytes(8, byteorder='big')
 
+def list_all_the_serial_ports():
+    port_list = serial.tools.list_ports.comports()
+    for port in port_list:
+        log.inf(' ')
+        log.inf('device: ' + port.device)
+        log.inf('name: ' + port.name)
+        log.inf('description: ' + port.description)
+        log.inf('hwid: ' + port.hwid)
+        log.inf('vid: ' + str(port.vid))
+        log.inf('pid: ' + str(port.pid))
+        log.inf('serial_number: ' + str(port.serial_number))
+        log.inf('location: ' + str(port.location))
+        log.inf('manufacturer: ' + str(port.manufacturer))
+        log.inf('product: ' + str(port.product))
+        log.inf('interface: ' + str(port.interface))
 
-def find_serial_device_by_name(device_name: str):
-    port_list = list(serial.tools.list_ports.grep(device_name))
+# only support name, description, hwid
+def find_serial_device(device: str):
+    port_list = list(serial.tools.list_ports.grep(device))
     port_path_list = list()
     for port in port_list:
         port_path_list.append(port.device)
@@ -79,15 +95,7 @@ def find_serial_device_by_name(device_name: str):
 def init_serial_device(device):
     global SERIAL_PORT
 
-    if isinstance(device, Path):
-        if not device.exists():
-            log.die('Serial device ' + str(device) + ' not exists!')
-
-        port_path_list = list()
-        port_path_list.append(str(device))
-    else:
-        port_path_list = find_serial_device_by_name(device)
-
+    port_path_list = find_serial_device(device)
     if port_path_list is None:
         log.die('Please confirm ' + str(device) + ' is correctly connected to your computer!')
     elif len(port_path_list) > 1:
@@ -97,7 +105,7 @@ def init_serial_device(device):
         try:
             SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
         except IOError:
-            log.wrn('Device is busy. Please ensure it is not in use')
+            log.wrn('Cannot connect to serial port, please ensure the device is not in use and you have the right permission')
 
         if SERIAL_PORT is not None and SERIAL_PORT.is_open:
             SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
@@ -810,17 +818,17 @@ def copy_to_filesystem(serial_name, delete, source, destination):
         log.die("Sync failed!")
 
     if source.is_dir() and delete:
-        des = (destination / source.name).resolve()
+        des = destination / source.name
         log.dbg('Deleting ' + str(des))
         rm(str(des))
 
     if source.is_dir():
         for file in files:
             file_path = (source / file).resolve()
-            des = (destination / source.name / file).resolve()
+            des = destination / source.name / file
             cp(str(file_path), str(des))
     else: # source is file
-        des = (destination / source.name).resolve()
+        des = destination / source.name
         cp(str(source), str(des))
 
 
