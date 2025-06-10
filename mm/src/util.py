@@ -47,13 +47,13 @@ def init_sdk_and_swift_path(sdk_path, swift_path=None, needSwiftToolchain=True):
     SDK_PATH = sdk_path
     SDK_ENV = os.environ.copy()
 
-    log.inf('Set mm-sdk path to: ' + str(SDK_PATH), level=log.VERBOSE_DBG)
+    log.dbg('Set mm-sdk path to: ' + str(SDK_PATH))
 
     if needSwiftToolchain and swift_path is None:
         try: 
             swift_path = Path(SDK_ENV['TOOLCHAIN']).resolve()
             if swift_path.is_dir():
-                log.inf('Using Swift toolchain from environment variable TOOLCHAIN: ' + str(swift_path))
+                log.dbg('Using Swift toolchain from environment variable TOOLCHAIN: ' + str(swift_path))
             else:
                 swift_path = None
         except KeyError: 
@@ -62,7 +62,7 @@ def init_sdk_and_swift_path(sdk_path, swift_path=None, needSwiftToolchain=True):
     if swift_path is None:
         swift_path = find_default_swift_path()
         if swift_path is not None:
-            log.inf('Using default Swift toolchain at: ' + str(swift_path))
+            log.dbg('Using default Swift toolchain at: ' + str(swift_path))
     SWIFT_PATH = swift_path
 
     if needSwiftToolchain:
