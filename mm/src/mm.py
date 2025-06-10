@@ -231,7 +231,7 @@ def ci_build(args):
             if (PROJECT_PATH / '.build').exists():
                 shutil.rmtree((PROJECT_PATH / '.build'))
             mmp_content = mmp.init_manifest(board=board, p_type=p_type, triple=triple, hard_float=hard_float, float_abi=float_abi)
-            mmp.initialize(mmp_content)
+            mmp.initialize_by_content(mmp_content)
             build_path = PROJECT_PATH / '.build' / triple / 'release'
 
             # destination = mmp.create_destination(p_path=PROJECT_PATH, build_path=build_path, p_type=p_type, p_name=p_name)
@@ -323,8 +323,7 @@ def get_info(args):
         system = platform.system()
         if system != 'Darwin':
             log.die(system + ' is not supported currently, please copy the bin file manually')
-        content = mmp_manifest.read_text()
-        mmp.initialize(content)
+        mmp.initialize(mmp_manifest)
         board_name = mmp.get_board_name()
         mount_path = download.darwin_get_mount_point()
         if mount_path is None:

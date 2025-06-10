@@ -59,7 +59,7 @@ version = 1
 
 TOML_CONTENT = None
 
-def initialize(content: str):
+def initialize_by_content(content: str):
     global TOML_CONTENT
 
     try:
