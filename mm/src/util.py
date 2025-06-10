@@ -8,7 +8,7 @@ SDK_ENV = None
 SDK_PATH = None
 
 SWIFT_PATH = None
-MACOS_SWIFT_PATH = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
+#MACOS_SWIFT_PATH = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
 
 SDK_ID = 'madmachine-sdk'
 MINIMUM_SWIFT_VERSION = '6.1.0'
@@ -37,7 +37,7 @@ sdk_tool_set = {
 def quote_string(path):
     return '"%s"' % str(path)
 
-def init_sdk_and_swift_path(sdk_path, swift_path=None, save=False, env_name=None):
+def init_sdk_and_swift_path(sdk_path, swift_path=None, needSwiftToolchain=True):
     global SDK_PATH
     global SWIFT_PATH
     global SDK_ENV
@@ -45,20 +45,32 @@ def init_sdk_and_swift_path(sdk_path, swift_path=None, save=False, env_name=None
     if not sdk_path.is_dir():
         log.die(str(sdk_path) + " doesn't exist")
     SDK_PATH = sdk_path
-
     SDK_ENV = os.environ.copy()
-    if save and env_name is not None:
-        SDK_ENV[env_name] = str(sdk_path)
+
+    log.inf('Set mm-sdk path to: ' + str(SDK_PATH), level=log.VERBOSE_DBG)
+
+    if needSwiftToolchain and swift_path is None:
+        try: 
+            swift_path = Path(SDK_ENV['TOOLCHAIN']).resolve()
+            if swift_path.is_dir():
+                log.inf('Using Swift toolchain from environment variable TOOLCHAIN: ' + str(swift_path))
+            else:
+                swift_path = None
+        except KeyError: 
+            swift_path = None
 
     if swift_path is None:
         swift_path = find_default_swift_path()
+        if swift_path is not None:
+            log.inf('Using default Swift toolchain at: ' + str(swift_path))
     SWIFT_PATH = swift_path
 
-    if SWIFT_PATH is not None:
-        return check_swift_version(MINIMUM_SWIFT_VERSION)
-    else:
-        return False
-
+    if needSwiftToolchain:
+        if SWIFT_PATH is None:
+            log.die('Cannot find a Swift toolchain, please install Swift toolchain for your platform')
+        elif not check_swift_version(MINIMUM_SWIFT_VERSION):
+            log.die('The default Swift toolchain version is too old, please update to at least ' + MINIMUM_SWIFT_VERSION)
+ 
 def get_sdk_path():
     return SDK_PATH
 
@@ -108,11 +120,11 @@ def find_default_swift_path():
     ret = run_command(flags)
     if ret is None or ret == '':
         ret = None
-        log.dbg('Cannot find Swift toolchain, please install Swift toolchain for your platform')
     else:
         ret = Path(ret) / '../../..'
         ret = ret.resolve()
 
+    log.dbg('Trying to use Swift toolchain at: ' + str(ret))
     return ret
 
 def check_swift_version(minimum):

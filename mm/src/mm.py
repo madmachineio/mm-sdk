@@ -380,15 +380,18 @@ def main():
 
     clean_parser = subparsers.add_parser('clean', help = 'Clean project')
     clean_parser.add_argument('--deep', action = 'store_true', help = "Clean all compilation outputs")
+    clean_parser.add_argument('--toolchain', type = Path, default = None, help = 'Set a specific Swift toolchain path, if not set, the default toolchain will be used')
     clean_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     clean_parser.set_defaults(func = clean_project)
 
     get_parser = subparsers.add_parser('get', help = 'Retrieve specified information for use by the IDE')
     get_parser.add_argument('--info', type = str, choices =['name', 'usb'], help = 'Type of information')
+    get_parser.add_argument('--toolchain', type = Path, default = None, help = 'Set a specific Swift toolchain path, if not set, the default toolchain will be used')
     get_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     get_parser.set_defaults(func = get_info)
 
     ci_build_parser = subparsers.add_parser('ci-build', help = 'CI Build')
+    ci_build_parser.add_argument('--toolchain', type = Path, default = None, help = 'Set a specific Swift toolchain path, if not set, the default toolchain will be used')
     ci_build_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     ci_build_parser.set_defaults(func = ci_build)
 
@@ -400,6 +403,7 @@ def main():
     header_parser.set_defaults(func = add_header)
 
     host_test_parser = subparsers.add_parser('host-test', help = 'Test a project on the host using the SwiftIO mock')
+    host_test_parser.add_argument('--toolchain', type = Path, default = None, help = 'Set a specific Swift toolchain path, if not set, the default toolchain will be used')
     host_test_parser.add_argument('-v', '--verbose', action = 'store_true', help = "Increase the verbosity of the output")
     host_test_parser.set_defaults(func = host_test)
 
@@ -423,14 +427,11 @@ def main():
     if vars(args).get('toolchain') is not None:
         toolchain_path = vars(args).get('toolchain')
 
-    util.init_sdk_and_swift_path(sdk_path, toolchain_path)
-    log.inf('Set mm-sdk path to: ' + str(util.SDK_PATH), level=log.VERBOSE_DBG)
+    if function == download_file or function == copy_resources or function == add_header:
+        util.init_sdk_and_swift_path(sdk_path, toolchain_path, needSwiftToolchain=False)
+    else:
+        util.init_sdk_and_swift_path(sdk_path, toolchain_path, needSwiftToolchain=True)
 
-    if function == init_project or function == build_project:
-        if util.SWIFT_PATH is None:
-            log.die('Cannot find the default Swift toolchain path')
-        else:
-            log.inf('Set Swift toolchain path to: ' + str(util.SWIFT_PATH), level=log.VERBOSE_DBG)
 
     args.func(args)
 
