@@ -166,6 +166,7 @@ def send_request(tag, payload = None):
         log.dbg('    payload: None')
         log.dbg('    crc: 0x' + crc.hex())
         SERIAL_PORT.write(FRAME_PREAMBLE + tag + length + crc)
+        SERIAL_PORT.flush()
     else:
         if not isinstance(payload, bytes) and not isinstance(payload, bytearray):
             log.dbg('payload must be bytes or bytearray')
@@ -179,6 +180,7 @@ def send_request(tag, payload = None):
         log.dbg('    payload: ' + str(int.from_bytes(length, 'big', signed='False')) + 'bytes')
         log.dbg('    crc: 0x' + crc.hex())
         SERIAL_PORT.write(FRAME_PREAMBLE + tag + length + payload + crc)
+        SERIAL_PORT.flush()
 
 def wait_response():
     header = SERIAL_PORT.read(16)
