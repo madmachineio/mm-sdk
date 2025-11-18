@@ -357,9 +357,10 @@ def get_swift_predefined(p_type):
 
 def get_swift_library():
     sdk_path = util.get_sdk_path()
+    module_version = util.get_swift_version_major_minor()
 
     flags = [
-        'lib/swift'
+        'lib/swift/' + module_version
     ]
 
     flags = ['-I ' + str(sdk_path / item) for item in flags]

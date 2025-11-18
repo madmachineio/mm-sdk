@@ -8,6 +8,7 @@ SDK_ENV = None
 SDK_PATH = None
 
 SWIFT_PATH = None
+SWIFT_VERSION_MAJOR_MINOR = None
 #MACOS_SWIFT_PATH = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
 
 SDK_ID = 'madmachine-sdk'
@@ -49,6 +50,9 @@ def init_sdk_and_swift_path(sdk_path, swift_path=None, needSwiftToolchain=True):
 
     log.dbg('Set mm-sdk path to: ' + str(SDK_PATH))
 
+    # Try to find Swift toolchain:
+    # 1. from main command parameter '--toolchain'
+    # 2. from environment variable 'TOOLCHAIN'
     if needSwiftToolchain and swift_path is None:
         try: 
             swift_path = Path(SDK_ENV['TOOLCHAIN']).resolve()
@@ -59,6 +63,7 @@ def init_sdk_and_swift_path(sdk_path, swift_path=None, needSwiftToolchain=True):
         except KeyError: 
             swift_path = None
 
+    # 3. from command 'swiftly use --print-location'
     if swift_path is None:
         swift_path = find_default_swift_path()
         if swift_path is not None:
@@ -69,13 +74,16 @@ def init_sdk_and_swift_path(sdk_path, swift_path=None, needSwiftToolchain=True):
         if SWIFT_PATH is None:
             log.die('Cannot find a Swift toolchain, please install Swift toolchain for your platform')
         elif not check_swift_version(MINIMUM_SWIFT_VERSION):
-            log.die('The default Swift toolchain version is too old, please update to at least ' + MINIMUM_SWIFT_VERSION)
+            log.die('The current Swift toolchain version is too old, please update to at least ' + MINIMUM_SWIFT_VERSION)
  
 def get_sdk_path():
     return SDK_PATH
 
 def get_swift_path():
     return SWIFT_PATH
+
+def get_swift_version_major_minor():
+    return SWIFT_VERSION_MAJOR_MINOR
 
 def get_tool_path(tool):
     subpath = swift_tool_set.get(tool)
@@ -114,20 +122,23 @@ def find_default_swift_path():
     if system == 'Windows':
         flags = ['(Get-Command swiftc).Source']
     else:
-        flags = ['which', 'swiftc']
+        flags = ['swiftly', 'use', '--print-location']
 
     log.dbg('Trying to find Swift toolchain with command: ' + ' '.join(flags))
-    ret = run_command(flags)
+    ret = run_command(flags).strip()
+
     if ret is None or ret == '':
         ret = None
     else:
-        ret = Path(ret) / '../../..'
+        ret = Path(ret)
         ret = ret.resolve()
 
-    log.dbg('Trying to use Swift toolchain at: ' + str(ret))
+    log.dbg('Found Swift toolchain at: ' + str(ret))
     return ret
 
 def check_swift_version(minimum):
+    global SWIFT_VERSION_MAJOR_MINOR
+
     swiftc = get_tool_string('swiftc')
     cmd = swiftc + ' -v'
 
@@ -141,14 +152,18 @@ def check_swift_version(minimum):
     if cmd_err:
         ret = cmd_err.decode('utf-8').rstrip()
 
-    match = re.search(r'\b\d+(\.\d+)+\b', ret)
+    #match = re.search(r'\b\d+(\.\d+)+\b', ret)
+    match = re.search(r'\b(?P<major>\d+)\.(?P<minor>\d+)(?:\.(?P<patch>\d+))?\b', ret)
     if match:
-        version = match.group()
-        check_ret = is_newer(version, minimum)
+        full_version = match.group(0)
+        check_ret = is_newer(full_version, minimum)
         if check_ret:
+            SWIFT_VERSION_MAJOR_MINOR = f"{match.group('major')}.{match.group('minor')}"
+            log.dbg('Swift toolchain version ' + full_version)
+            log.dbg('Swift toolchain version without patch ' + SWIFT_VERSION_MAJOR_MINOR)
             return True
         else:
-            log.wrn('Swift toolchain version ' + version + ' is older than required minimum version ' + minimum)
+            log.wrn('Swift toolchain version ' + full_version + ' is older than required minimum version ' + minimum)
 
     return False
 
