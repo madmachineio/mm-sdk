@@ -29,7 +29,7 @@ The latest features would be added to this SDK first and then integrated into th
 
 ### macOS
 
-Install XCode and open it so it could install any components that needed.
+Install [swiftly](https://www.swift.org/install/macos) first, then use it to install the Swift toolchain
 
 ### Ubuntu 22.04
 
