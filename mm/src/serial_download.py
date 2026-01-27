@@ -177,7 +177,7 @@ def send_request(tag, payload = None):
         log.dbg('request:')
         log.dbg('    tag: 0x' + tag.hex())
         log.dbg('    length: 0x' + length.hex())
-        log.dbg('    payload: ' + str(int.from_bytes(length, 'big', signed='False')) + 'bytes')
+        log.dbg('    payload: ' + str(int.from_bytes(length, 'big', signed=False)) + 'bytes')
         log.dbg('    crc: 0x' + crc.hex())
         SERIAL_PORT.write(FRAME_PREAMBLE + tag + length + payload + crc)
         SERIAL_PORT.flush()

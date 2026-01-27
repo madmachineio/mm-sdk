@@ -100,20 +100,21 @@ def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='tr
 
 
 def get_board_name():
-    board = TOML_CONTENT.get('board').strip()
+    board = TOML_CONTENT.get('board')
 
     if board is None:
         log.die('Unable to recognize the board type in Package.mmp!')
 
-    return board
+    return board.strip()
 
 
 def get_triple():
-    triple = TOML_CONTENT.get('triple').strip()
+    triple = TOML_CONTENT.get('triple')
     hard_float = TOML_CONTENT.get('hard-float')
 
-    if len(triple) == 0:
+    if triple is None:
         log.die('The triple configuration is missing in Package.mmp!')
+    triple = triple.strip()
 
     if SUPPORTED_ARCHS.count(triple) == 0:
         log.die('Unknown triple: ' + triple)
@@ -357,7 +358,7 @@ def get_swift_predefined(p_type):
 
 def get_swift_library():
     sdk_path = util.get_sdk_path()
-    module_version = util.get_swift_version_major_minor()
+    module_version = util.get_swift_module_version()
 
     flags = [
         'lib/swift/' + module_version

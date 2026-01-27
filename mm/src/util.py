@@ -9,6 +9,7 @@ SDK_PATH = None
 
 SWIFT_PATH = None
 SWIFT_VERSION_MAJOR_MINOR = None
+SWIFT_VERSION_FULL = None
 #MACOS_SWIFT_PATH = Path('/Library/Developer/Toolchains/swift-latest.xctoolchain')
 
 SDK_ID = 'madmachine-sdk'
@@ -85,6 +86,18 @@ def get_swift_path():
 def get_swift_version_major_minor():
     return SWIFT_VERSION_MAJOR_MINOR
 
+def get_swift_version_full():
+    return SWIFT_VERSION_FULL
+
+def get_swift_module_version():
+    # Some patch releases can break binary module compatibility.
+    overrides = {
+        '6.2.3': '6.2.3'
+    }
+    if SWIFT_VERSION_FULL in overrides:
+        return overrides[SWIFT_VERSION_FULL]
+    return SWIFT_VERSION_MAJOR_MINOR
+
 def get_tool_path(tool):
     subpath = swift_tool_set.get(tool)
     if subpath is not None:
@@ -126,6 +139,9 @@ def find_default_swift_path():
 
     log.dbg('Trying to find Swift toolchain with command: ' + ' '.join(flags))
     ret = run_command(flags).strip()
+    if ret:
+        # Keep only the first line in case the tool prints update notices.
+        ret = ret.splitlines()[0].strip()
 
     if ret is None or ret == '':
         ret = None
@@ -138,6 +154,7 @@ def find_default_swift_path():
 
 def check_swift_version(minimum):
     global SWIFT_VERSION_MAJOR_MINOR
+    global SWIFT_VERSION_FULL
 
     swiftc = get_tool_string('swiftc')
     cmd = swiftc + ' -v'
@@ -158,6 +175,7 @@ def check_swift_version(minimum):
         full_version = match.group(0)
         check_ret = is_newer(full_version, minimum)
         if check_ret:
+            SWIFT_VERSION_FULL = full_version
             SWIFT_VERSION_MAJOR_MINOR = f"{match.group('major')}.{match.group('minor')}"
             log.dbg('Swift toolchain version ' + full_version)
             log.dbg('Swift toolchain version without patch ' + SWIFT_VERSION_MAJOR_MINOR)
@@ -213,9 +231,13 @@ def run_command(flags):
     if ret:
         log.dbg('Command failed: ' + cmd)
 
-    if cmd_err:
-        log.wrn(cmd_err.decode('utf-8'))
-        return cmd_err.decode('utf-8')
+    cmd_out_text = cmd_out.decode('utf-8') if cmd_out else ''
+    cmd_err_text = cmd_err.decode('utf-8') if cmd_err else ''
 
-    log.inf(cmd_out.decode('utf-8'), level=log.VERBOSE_DBG)
-    return cmd_out.decode('utf-8')
+    if cmd_err_text:
+        log.wrn(cmd_err_text)
+    if cmd_out_text:
+        log.inf(cmd_out_text, level=log.VERBOSE_DBG)
+        return cmd_out_text
+    
+    return cmd_err_text

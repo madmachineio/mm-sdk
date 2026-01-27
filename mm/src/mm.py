@@ -171,7 +171,7 @@ def copy_resources(args):
     # Path works differently on Windows and Unix-like systems
     # Use PurePosixPath here
     if not str(args.destination).startswith('/'):
-        log.die('The destination is supposed be an absolute path, now it is: ' + str(destination))
+        log.die('The destination is supposed be an absolute path, now it is: ' + str(args.destination))
 
     destination = PurePosixPath(args.destination)
 
