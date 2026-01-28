@@ -63,7 +63,7 @@ def initialize():
     global PKG_DESCRIBE_JSON
 
     flags = [
-        util.get_tool('swift-package'),
+        util.get_tool_string('swift-package'),
         'describe',
         '--type json'
     ]
@@ -72,14 +72,13 @@ def initialize():
 
 def init_manifest(p_name, p_type):
     flags = [
-        util.get_tool('swift-package'),
+        util.get_tool_string('swift-package'),
         'init',
         '--type ' + p_type,
         '--name ' + p_name
     ]
 
-    ret = util.run_command(flags)
-    log.inf(ret, level=log.VERBOSE_DBG)
+    _ = util.run_command(flags)
 
     if p_type == 'library':
         content = DEFAULT_LIB_MANIFEST
@@ -126,7 +125,7 @@ def get_project_type():
 
 # def destination_build(p_type, destination):
 #     flags = [
-#         util.get_tool('swift-build'),
+#         util.get_tool_string('swift-build'),
 #         '-c release',
 #         '--destination',
 #         util.quote_string(destination),
@@ -145,7 +144,7 @@ def get_project_type():
 
 def build(p_path, p_type):
     flags = [
-        util.get_tool('swift-build'),
+        util.get_tool_string('swift-build'),
         '-c release',
         '--swift-sdks-path',
         util.quote_string(p_path / '.build'),
@@ -164,7 +163,7 @@ def build(p_path, p_type):
 
 def clean():
     flags = [
-        util.get_tool('swift-package'),
+        util.get_tool_string('swift-package'),
         'clean'
     ]
     ret = util.command(flags)
@@ -199,7 +198,7 @@ def get_mock_revision():
 
 def edit_package(package, revision):
     flags = [
-        util.get_tool('swift-package'),
+        util.get_tool_string('swift-package'),
         'edit',
         package,
         '--revision',
@@ -212,7 +211,7 @@ def edit_package(package, revision):
 
 def host_test():
     flags = [
-        util.get_tool('swift-test'),
+        util.get_tool_string('swift-test'),
         '-c',
         'release',
         '--enable-code-coverage',
@@ -228,7 +227,7 @@ def host_test():
 
 def get_codecov_path():
     flags = [
-        util.get_tool('swift-test'),
+        util.get_tool_string('swift-test'),
         '-c',
         'release',
         '--show-codecov-path'
@@ -240,7 +239,7 @@ def get_codecov_path():
 
 def generate_code_report(test_path, prof_path):
     flags = [
-        util.get_tool('llvm-cov'),
+        util.get_tool_string('llvm-cov'),
         'export -format=lcov',
         test_path,
         '-instr-profile',

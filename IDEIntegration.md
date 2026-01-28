@@ -32,3 +32,4 @@ After these procedures, the project should be initialized correctlly
 
 1. `cd` into the project directory
 2. `mm-sdk/usr/mm/mm download`
+

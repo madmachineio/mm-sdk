@@ -1,7 +1,7 @@
 from pickletools import read_stringnl_noescape
 import serial, serial.tools.list_ports
 from time import sleep
-from pathlib import Path
+from pathlib import Path, PosixPath
 from tqdm import tqdm
 from zlib import crc32
 import log, util
@@ -63,9 +63,25 @@ def get_uint64_big_bytes(number):
     
     return number.to_bytes(8, byteorder='big')
 
+def list_all_the_serial_ports():
+    port_list = serial.tools.list_ports.comports()
+    for port in port_list:
+        log.inf(' ')
+        log.inf('device: ' + port.device)
+        log.inf('name: ' + port.name)
+        log.inf('description: ' + port.description)
+        log.inf('hwid: ' + port.hwid)
+        log.inf('vid: ' + str(port.vid))
+        log.inf('pid: ' + str(port.pid))
+        log.inf('serial_number: ' + str(port.serial_number))
+        log.inf('location: ' + str(port.location))
+        log.inf('manufacturer: ' + str(port.manufacturer))
+        log.inf('product: ' + str(port.product))
+        log.inf('interface: ' + str(port.interface))
 
-def find_serial_device(device_name):
-    port_list = list(serial.tools.list_ports.grep(device_name))
+# only support name, description, hwid
+def find_serial_device(device: str):
+    port_list = list(serial.tools.list_ports.grep(device))
     port_path_list = list()
     for port in port_list:
         port_path_list.append(port.device)
@@ -76,21 +92,20 @@ def find_serial_device(device_name):
     return port_path_list
 
 
-def init_serial_device(device_name):
+def init_serial_device(device):
     global SERIAL_PORT
 
-    port_path_list = find_serial_device(device_name)
-
+    port_path_list = find_serial_device(device)
     if port_path_list is None:
-        log.die('Please confirm ' + device_name + ' is correctly connected to your computer!')
+        log.die('Please confirm ' + str(device) + ' is correctly connected to your computer!')
     elif len(port_path_list) > 1:
-        log.wrn('Found more than one ' + device_name)
+        log.wrn('Multiple ' + str(device) + ' devices found')
 
     for port_path in port_path_list:
         try:
             SERIAL_PORT = serial.Serial(port_path, SERIAL_INIT_BAUDRATE, 8, 'N', 1)
         except IOError:
-            log.wrn('Device or resource busy! Please make sure it is not in use!')
+            log.wrn('Cannot connect to serial port, please ensure the device is not in use and you have the right permission')
 
         if SERIAL_PORT is not None and SERIAL_PORT.is_open:
             SERIAL_PORT.timeout = SERIAL_PORT_READ_TIMEOUT
@@ -102,18 +117,17 @@ def init_serial_device(device_name):
                 if ret:
                     SERIAL_PORT.reset_output_buffer()
                     SERIAL_PORT.reset_input_buffer()
-                    log.inf('Open ' + port_path + ' success')
+                    log.inf('Successfully opened ' + port_path)
                     break
                 else:
                     deinit_serial_device()
             else:
-                log.inf('Open ' + port_path + ' success')
+                log.inf('Successfully opened ' + port_path)
         else:
-            log.wrn('Open ' + port_path + ' failed!')
+            log.wrn('Failed to open ' + port_path)
     
     if SERIAL_PORT is None or not SERIAL_PORT.is_open:
-        log.die('Open ' + device_name + ' failed!')
-    
+        log.die('Open ' + str(device) + ' failed!')
 
 
 def deinit_serial_device():
@@ -152,6 +166,7 @@ def send_request(tag, payload = None):
         log.dbg('    payload: None')
         log.dbg('    crc: 0x' + crc.hex())
         SERIAL_PORT.write(FRAME_PREAMBLE + tag + length + crc)
+        SERIAL_PORT.flush()
     else:
         if not isinstance(payload, bytes) and not isinstance(payload, bytearray):
             log.dbg('payload must be bytes or bytearray')
@@ -162,9 +177,10 @@ def send_request(tag, payload = None):
         log.dbg('request:')
         log.dbg('    tag: 0x' + tag.hex())
         log.dbg('    length: 0x' + length.hex())
-        log.dbg('    payload: ' + str(int.from_bytes(length, 'big', signed='False')) + 'bytes')
+        log.dbg('    payload: ' + str(int.from_bytes(length, 'big', signed=False)) + 'bytes')
         log.dbg('    crc: 0x' + crc.hex())
         SERIAL_PORT.write(FRAME_PREAMBLE + tag + length + payload + crc)
+        SERIAL_PORT.flush()
 
 def wait_response():
     header = SERIAL_PORT.read(16)
@@ -271,7 +287,7 @@ def sync(try_count = 6):
     print('', flush=True)
     SERIAL_PORT.timeout = previous_timeout
     if not result:
-        log.wrn('serial port synchronization failed!')
+        log.wrn('Failed to synchronize with serial port')
 
     return result
 
@@ -375,11 +391,11 @@ def partion_set_boot(name):
 
 
 
-def sdcard_begin(image_length, image_path):
+def sdcard_begin(image_length, image_name):
     image_length = get_uint32_big_bytes(image_length)
-    image_path = bytes(image_path, 'utf-8') + b'\x00'
+    image_name = bytes(image_name, 'utf-8') + b'\x00'
 
-    payload = image_length + image_path
+    payload = image_length + image_name
 
     send_request(FS_BEGIN_TAG, payload)
     response = wait_response()
@@ -453,16 +469,16 @@ def rm(path):
     previous_timeout = SERIAL_PORT.timeout
     SERIAL_PORT.timeout = SERIAL_PORT_FS_TIMEOUT
 
-    log.inf('Deleteing ' + str(path))
+    log.inf('Deleting ' + str(path))
     payload = bytes(path, 'utf-8') + b'\x00'
     log.dbg(list(payload))
 
     send_request(FS_RM_TAG, payload)
     response = wait_response()
     if not response_verify(response, FS_RM_TAG):
-        log.wrn('Deletion of the ' + path + ' failed')
+        log.wrn('Failed to delete ' + path)
     else:
-        log.inf('Deletion of the ' + path + ' was successful')
+        log.inf('Successfully deleted ' + path)
 
     SERIAL_PORT.timeout = previous_timeout
 
@@ -498,8 +514,8 @@ def cp(src, dst):
 
 
 
-def send_file2mem(file_name, addr, bar=False):
-    f = Path(file_name)
+def send_file2mem(file_path, addr, bar=False):
+    f = Path(file_path)
 
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
@@ -525,7 +541,7 @@ def send_file2mem(file_name, addr, bar=False):
     mem_end(file_crc)
 
 
-def send_file2flash(file_name, addr, run_addr):
+def send_file2flash(file_name, addr):
     f = Path(file_name)
 
     if not f.is_file():
@@ -546,12 +562,11 @@ def send_file2flash(file_name, addr, run_addr):
         process_bar.update(len(payload))
 
     process_bar.close()
-    flash_end(file_crc, run_addr)
+    flash_end(file_crc)
 
 
-def send_file2sdcard(file_name, target_name):
-    f = Path(file_name)
-
+def send_file2sdcard(file_path, file_rename):
+    f = Path(file_path)
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
 
@@ -560,7 +575,7 @@ def send_file2sdcard(file_name, target_name):
     file_crc = crc32(file_bytes)
     process_bar = tqdm(total=file_length, unit='B', unit_scale=True)
 
-    sdcard_begin(file_length, target_name)
+    sdcard_begin(file_length, file_rename)
 
     offset = 0
     while offset < file_length:
@@ -573,9 +588,8 @@ def send_file2sdcard(file_name, target_name):
     sdcard_end(file_crc)
 
 
-def send_file2partion(file_name, partition_name):
-    f = Path(file_name)
-
+def send_file2partion(file_path, partition_name):
+    f = Path(file_path)
     if not f.is_file():
         log.die('open file ' + str(f) + ' failed!')
 
@@ -691,7 +705,7 @@ def test_list_serial_port():
         log.inf(port.description)
 
 
-def load_to_ram(serial_name, image, address):
+def load_to_ram(serial_name, file_path, address):
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -702,13 +716,13 @@ def load_to_ram(serial_name, image, address):
     if sync() == False:
         log.die("Sync failed!")
 
-    send_file2mem(image, address)
+    send_file2mem(file_path, address)
     execute(address)
 
     deinit_serial_device()
 
 
-def load_to_partition(serial_name, image, partition):
+def load_to_partition(serial_name, file_path, partition):
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -730,7 +744,7 @@ def load_to_partition(serial_name, image, partition):
     if sync() == False:
         log.die("Sync failed!")
 
-    send_file2partion(image, partition)
+    send_file2partion(file_path, partition)
 
     partion_set_boot(partition)
 
@@ -739,7 +753,7 @@ def load_to_partition(serial_name, image, partition):
     deinit_serial_device()
 
 
-def load_to_sdcard(serial_name, image, target_name):
+def load_to_sdcard(serial_name, file_path, file_rename):
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -761,7 +775,7 @@ def load_to_sdcard(serial_name, image, target_name):
     if sync() == False:
         log.die("Sync failed!")
 
-    send_file2sdcard(image, target_name)
+    send_file2sdcard(file_path, file_rename)
     reboot()
 
     deinit_serial_device()
@@ -769,7 +783,24 @@ def load_to_sdcard(serial_name, image, target_name):
 
 
 
-def copy_to_filesystem(serial_name, delete, source, destination, files):
+def copy_to_filesystem(serial_name, delete, source, destination):
+    source = source.resolve()
+
+    files = []
+    if source.is_dir():
+        file_paths = sorted(source.glob('**/*'))
+        for item in file_paths:
+            if item.is_file():
+                files.append(item.relative_to(source))
+    elif source.is_file():
+        files.append(source)
+
+    if len(files) == 0:
+        log.die(str(source) + ' is empty')
+
+    for file in files:
+        log.dbg(str(file))
+
     init_serial_device(serial_name)
 
     reset_to_download()
@@ -788,12 +819,20 @@ def copy_to_filesystem(serial_name, delete, source, destination, files):
     if sync() == False:
         log.die("Sync failed!")
 
-    if delete:
-        rm(str(destination / source))
+    if source.is_dir() and delete:
+        des = destination / source.name
+        log.dbg('Deleting ' + str(des))
+        rm(str(des))
 
-    for file in files:
-        des = destination / file
-        cp(str(file), str(des))
+    if source.is_dir():
+        for file in files:
+            file_path = (source / file).resolve()
+            des = destination / source.name / file
+            cp(str(file_path), str(des))
+    else: # source is file
+        des = destination / source.name
+        cp(str(source), str(des))
+
 
     reboot()
     deinit_serial_device()
@@ -831,7 +870,7 @@ def test_load_to_ram(serial_name, address):
         #deinit_serial_device()
         count += 1
 
-        log.inf('------ count = ' + str(count) + ' transfer ' + str(mbytes) + 'mb' + ' ------')
+        log.inf('------ Transferring ' + str(mbytes) + 'MB (count: ' + str(count) + ') ------')
 
 
 #log.set_verbosity(log.VERBOSE_DBG)

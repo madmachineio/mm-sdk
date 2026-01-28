@@ -1,6 +1,4 @@
-import platform
 import toml, json
-from zlib import crc32
 from pathlib import Path
 import util, log, version
 
@@ -18,14 +16,15 @@ SUPPORTED_BOARDS = [
 SWIFTIO_BOARD = {'vid': '0x1fc9',
                 'pid': '0x0093',
                 'serial_number': '012345671FC90093',
-                'sd_image_name': 'swiftio.bin',
+                'image_name': 'swiftio.bin',
                 'usb2serial_device': 'DAPLink CMSIS-DAP'}
 
 SWIFTIO_MICRO = {'vid': '0x1fc9',
                 'pid': '0x0095',
                 'serial_number': '012345671FC90095',
-                'sd_image_name': 'micro.img',
-                'usb2serial_device': '/dev/ttyACM0' if platform.system() == 'Linux' else 'wch'}
+                'image_name': 'micro.img',
+                #'usb2serial_device': '/dev/ttyACM0' if platform.system() == 'Linux' else 'wch'}
+                'usb2serial_device': '1A86:55D3'}
 
 
 DEFAULT_MMP_MANIFEST = """# This is a MadMachine project file in TOML format
@@ -60,7 +59,7 @@ version = 1
 
 TOML_CONTENT = None
 
-def initialize(content):
+def initialize_by_content(content: str):
     global TOML_CONTENT
 
     try:
@@ -68,6 +67,18 @@ def initialize(content):
     except:
         log.die('decoding Package.mmp failed!')
 
+def initialize(manifest: Path):
+    global TOML_CONTENT
+
+    if not manifest.is_file():
+        log.die('Package.mmp not found!')
+
+    content = manifest.read_text()
+
+    try:
+        TOML_CONTENT = toml.loads(content)
+    except:
+        log.die('decoding Package.mmp failed!')
 
 def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='true', float_abi='false'):    
     if p_type == 'library':
@@ -89,20 +100,21 @@ def init_manifest(board, p_type, triple='armv7em-none-none-eabi', hard_float='tr
 
 
 def get_board_name():
-    board = TOML_CONTENT.get('board').strip()
+    board = TOML_CONTENT.get('board')
 
     if board is None:
         log.die('Unable to recognize the board type in Package.mmp!')
 
-    return board
+    return board.strip()
 
 
 def get_triple():
-    triple = TOML_CONTENT.get('triple').strip()
+    triple = TOML_CONTENT.get('triple')
     hard_float = TOML_CONTENT.get('hard-float')
 
-    if len(triple) == 0:
+    if triple is None:
         log.die('The triple configuration is missing in Package.mmp!')
+    triple = triple.strip()
 
     if SUPPORTED_ARCHS.count(triple) == 0:
         log.die('Unknown triple: ' + triple)
@@ -115,6 +127,13 @@ def get_triple():
 
     return triple
 
+def get_default_image_path(project_path):
+    triple = get_triple()
+    file_name = get_board_info('image_name')
+
+    file_path = project_path / '.build' / triple / 'release' / file_name
+    
+    return file_path
 
 def get_float_type(wrn=False):
     hard_float = TOML_CONTENT.get('hard-float')
@@ -125,12 +144,12 @@ def get_float_type(wrn=False):
 
     if hard_float is None:
         if wrn:
-            log.wrn('The hard-float setting is missing in Package.mmp, defualting to true!')
+            log.wrn('hard-float setting not found in Package.mmp, using default: true')
         hard_float = True
 
     if float_abi is None:
         if wrn:
-            log.wrn('The float-abi setting is missing in Package.mmp, defualting to false!')
+            log.wrn('float-abi setting not found in Package.mmp, using default: false')
         float_abi = False
 
     return hard_float, float_abi
@@ -339,9 +358,10 @@ def get_swift_predefined(p_type):
 
 def get_swift_library():
     sdk_path = util.get_sdk_path()
+    module_version = util.get_swift_module_version()
 
     flags = [
-        'lib/swift'
+        'lib/swift/' + module_version
     ]
 
     flags = ['-I ' + str(sdk_path / item) for item in flags]
@@ -623,7 +643,7 @@ def get_sdk_info(name):
     }
 
     js_text = json.dumps(info_dic, indent=2)
-    log.dbg(js_text)
+    # log.dbg(js_text)
 
     return js_text
 
@@ -648,7 +668,7 @@ def get_swift_sdk():
     }
 
     js_text = json.dumps(swift_sdk_dic, indent=2)
-    log.dbg(js_text)
+    # log.dbg(js_text)
 
     return js_text
 
@@ -687,7 +707,7 @@ def get_toolset(build_path, p_type, p_name):
         }
 
     js_text = json.dumps(toolset_dic, indent = 2)
-    log.dbg(js_text)
+    # log.dbg(js_text)
 
     return js_text
 
@@ -722,7 +742,7 @@ def create_binary(build_path, name):
     bin_path = build_path / (name + '.bin')
 
     flags = [
-        util.get_tool('objcopy'),
+        util.get_tool_string('objcopy'),
         '-S',
         '-Obinary',
         '--gap-fill',
